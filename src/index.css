@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@supports (font-variation-settings: normal) {
+  :root {
+    font-family: InterVariable, sans-serif;
+  }
+}
+
+:root {
+  font-family: Inter, sans-serif;
+  font-feature-settings:
+    "liga" 1,
+    "calt" 1;
+
+  --background: #1b1b1b;
+  --surface: #242424;
+  --surface-sunken: #1e1e1e;
+  --surface-elevated: #2d2d2d;
+  --surface-panel: #383838;
+  --surface-menu: #2a2a2a;
+  --surface-hover: #414141;
+
+  --border: #3a3a3a;
+  --border-strong: #4a4a4a;
+
+  --accent: #f17d3d;
+  --accent-hover: #ff8b4a;
+  --accent-ink: #1d1510;
+
+  --success: #46a758;
+  --success-ink: #0f1b12;
+  --warning: #eab308;
+
+  --scrim: #141414;
+
+  --text-primary: #f4f4f4;
+  --text-secondary: #c8c8c8;
+  --text-muted: #969696;
+
+  --ui-radius: 2px;
+  --ui-radius-lg: 3px;
+  --ui-control-height: 2.5rem;
+  --ui-icon-size: 2.5rem;
+
+  --bracket-bg: #262626;
+  --bracket-header: #333333;
+  --bracket-card: #626262;
+  --bracket-card-alt: #838383;
+  --bracket-ink: #1b1b1b;
+  --bracket-accent: var(--accent);
+  --bracket-text: #f5f5f5;
+  --bracket-muted: #9a9a9a;
+  --bracket-line: #f0f0f0;
+  --bracket-highlight: #7a4328;
+  --bracket-border: #1e1e1e;
+  --bracket-divider: #4d4d4d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-menu: var(--surface-menu);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-success: var(--success);
+  --color-success-ink: var(--success-ink);
+  --color-warning: var(--warning);
+
+  --color-scrim: var(--scrim);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-bracket-bg: var(--bracket-bg);
+  --color-bracket-header: var(--bracket-header);
+  --color-bracket-card: var(--bracket-card);
+  --color-bracket-card-alt: var(--bracket-card-alt);
+  --color-bracket-ink: var(--bracket-ink);
+  --color-bracket-accent: var(--bracket-accent);
+  --color-bracket-text: var(--bracket-text);
+  --color-bracket-muted: var(--bracket-muted);
+  --color-bracket-line: var(--bracket-line);
+  --color-bracket-highlight: var(--bracket-highlight);
+  --color-bracket-border: var(--bracket-border);
+  --color-bracket-divider: var(--bracket-divider);
+
+  --radius-ui: var(--ui-radius);
+  --radius-ui-lg: var(--ui-radius-lg);
+}
+
+@layer base {
+  * {
+    font-style: normal;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--background);
+    color: var(--text-primary);
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--accent-ink);
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-color: var(--border-strong);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--surface-hover);
+}
+
+.bracket-dots {
+  background-color: var(--bracket-bg);
+  background-image: radial-gradient(circle, rgb(255 255 255 / 4.5%) 1px, transparent 1px);
+  background-size: 6px 6px;
+}

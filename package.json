@@ -1,0 +1,57 @@
+{
+  "name": "challonge-obs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.script.ts",
+    "dev:ui": "vite",
+    "dev:server": "bun --watch server/index.server.ts",
+    "server": "bun run server/index.server.ts",
+    "start": "bun run server/index.server.ts",
+    "build": "tsc -b && vite build",
+    "build:exe": "bun scripts/build.script.ts",
+    "preview": "bun run server/index.server.ts",
+    "test": "bun test",
+    "lint": "oxlint --config oxlint.config.ts --type-aware",
+    "typecheck": "tsc -b --noEmit",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "@hullperse/hp_utils": "^1.0.7",
+    "@tanstack/react-query": "^5.107.1",
+    "animejs": "^4.5.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.2",
+    "drizzle-orm": "^0.45.4",
+    "elysia": "1.4.31",
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.5",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@babel/core": "^8.1.0",
+    "@rolldown/plugin-babel": "^0.3.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/babel__core": "^7.20.5",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "oxfmt": "^0.77.0",
+    "oxlint": "^1.92.0",
+    "oxlint-tsgolint": "^7.0.2006",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.6"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "packageManager": "bun@1.4.0"
+}

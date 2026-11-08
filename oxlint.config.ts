@@ -1,0 +1,130 @@
+import { defineConfig } from "oxlint";
+
+export default defineConfig({
+  ignorePatterns: ["_src", "_src/**"],
+  plugins: ["react", "typescript", "unicorn", "import", "promise", "oxc", "jsx-a11y"],
+
+  options: {
+    typeAware: true,
+    typeCheck: false,
+  },
+
+  rules: {
+    // Core: correctness
+    "no-else-return": "off",
+    "no-debugger": "error",
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "no-fallthrough": "error",
+    "no-unreachable": "error",
+    "no-unsafe-finally": "error",
+    "no-unexpected-multiline": "error",
+    "no-unmodified-loop-condition": "error",
+    "no-useless-catch": "error",
+    "no-useless-escape": "error",
+    "no-void": "error",
+
+    // Core: code quality
+    complexity: ["error", 15],
+    "max-depth": ["warn", 4],
+    "max-nested-callbacks": ["warn", 4],
+    "no-lonely-if": "error",
+    "no-nested-ternary": "off",
+    "no-empty": ["error", { allowEmptyCatch: false }],
+    "no-empty-function": "warn",
+    "no-shadow": "error",
+    "no-use-before-define": "error",
+    "no-duplicate-imports": "error",
+    "no-unneeded-ternary": "error",
+
+    // TypeScript: type safety
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "warn",
+    "typescript/no-unnecessary-condition": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unnecessary-type-conversion": "warn",
+    "typescript/no-unnecessary-type-parameters": "warn",
+    "typescript/no-redundant-type-constituents": "error",
+    "typescript/no-confusing-void-expression": "warn",
+    "typescript/no-implied-eval": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-optional-chain": "error",
+    "typescript/prefer-nullish-coalescing": "warn",
+    "typescript/consistent-return": "warn",
+    "typescript/require-await": "warn",
+    "typescript/strict-boolean-expressions": "off",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/consistent-type-definitions": "off",
+    "typescript/consistent-type-imports": "error",
+    "typescript/consistent-type-exports": "error",
+
+    // React
+    "react/jsx-key": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-useless-fragment": "warn",
+    "react/jsx-pascal-case": "error",
+    "react/no-array-index-key": "warn",
+    "react/no-children-prop": "error",
+    "react/no-danger": "warn",
+    "react/no-unknown-property": "error",
+    "react/self-closing-comp": "error",
+    "react/button-has-type": "error",
+    "react/exhaustive-deps": "warn",
+
+    // Accessibility
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/anchor-has-content": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-proptypes": "error",
+    "jsx-a11y/aria-unsupported-elements": "error",
+    "jsx-a11y/click-events-have-key-events": "warn",
+    "jsx-a11y/label-has-associated-control": "error",
+    "jsx-a11y/no-autofocus": "warn",
+    "jsx-a11y/no-noninteractive-element-interactions": "warn",
+    "jsx-a11y/no-static-element-interactions": "warn",
+
+    // Unicorn: useful modern JS patterns
+    "unicorn/error-message": "error",
+    "unicorn/escape-case": "error",
+    "unicorn/new-for-builtins": "error",
+    "unicorn/no-array-callback-reference": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-array-reduce": "off",
+    "unicorn/no-instanceof-array": "error",
+    "unicorn/no-new-array": "error",
+    "unicorn/no-process-exit": "error",
+    "unicorn/no-useless-undefined": "warn",
+    "unicorn/prefer-array-find": "warn",
+    "unicorn/prefer-array-some": "warn",
+    "unicorn/prefer-includes": "warn",
+    "unicorn/prefer-number-properties": "error",
+    "unicorn/prefer-string-starts-ends-with": "warn",
+    "unicorn/prefer-ternary": "off",
+    "unicorn/prefer-top-level-await": "off",
+
+    // Imports
+    "import/no-duplicates": "error",
+    "import/first": "error",
+    "import/no-absolute-path": "error",
+    "import/no-self-import": "error",
+
+    // Promises
+    "promise/always-return": "off",
+    "promise/catch-or-return": "error",
+    "promise/no-nesting": "warn",
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
+    "promise/prefer-await-to-callbacks": "warn",
+    "promise/prefer-await-to-then": "warn",
+
+    // Oxc
+    "oxc/no-accumulating-spread": "warn",
+    "oxc/no-async-await": "off",
+  },
+});
