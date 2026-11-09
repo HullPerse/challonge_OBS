@@ -1,14 +1,17 @@
 import type {
   Match,
+  MatchEntrant,
   MatchIdentity,
   MatchMetadata,
   MatchParticipants,
   Player,
+  RawGroup,
   RawMatch,
   RawPlayer,
   RawStore,
   Round,
   RoundSide,
+  TournamentGroup,
 } from "@/types/tournament";
 
 /** Challonge encodes losers rounds as negative numbers. */
@@ -37,6 +40,17 @@ const toPlayer = (raw: RawPlayer | null | undefined): Player | null => {
   };
 };
 
+const toEntrant = (raw: NonNullable<RawMatch["participants"]>[number]): MatchEntrant => {
+  return {
+    id: raw.id,
+    seed: raw.seed ?? 0,
+    name: raw.display_name,
+    avatar: raw.portrait_url ?? null,
+    score: raw.scores?.[0] ?? null,
+    rank: raw.final_rank ?? null,
+  };
+};
+
 const toMatchIdentity = (raw: RawMatch, order: number, fallbackId: number): MatchIdentity => {
   return {
     id: raw.id ?? fallbackId,
@@ -62,10 +76,22 @@ const toMatchParticipants = (raw: RawMatch): MatchParticipants => {
   };
 };
 
+/** Challonge may send a station as a name, a number or a full station object. */
+const stationName = (station: RawMatch["station"]): string | null => {
+  if (station == null) return null;
+  if (typeof station === "string") return station;
+  if (typeof station === "number") return String(station);
+
+  const name = station.name?.trim();
+  if (name) return name;
+
+  return station.id == null ? null : String(station.id);
+};
+
 const toMatchMetadata = (raw: RawMatch): MatchMetadata => {
   return {
     scheduledTime: raw.scheduled_time ?? null,
-    station: raw.station == null ? null : String(raw.station),
+    station: stationName(raw.station),
     prereq1: raw.player1_prereq_identifier ?? null,
     prereq2: raw.player2_prereq_identifier ?? null,
     prereq1IsLoser: raw.player1_is_prereq_match_loser ?? false,
@@ -75,9 +101,12 @@ const toMatchMetadata = (raw: RawMatch): MatchMetadata => {
 };
 
 const toMatch = (raw: RawMatch, order: number, fallbackId: number): Match => {
+  const entrants = raw.participants?.map(toEntrant) ?? [];
+
   return {
     ...toMatchIdentity(raw, order, fallbackId),
     ...toMatchParticipants(raw),
+    ...(entrants.length > 0 ? { entrants } : {}),
     ...toMatchMetadata(raw),
   };
 };
@@ -109,14 +138,36 @@ const resolveFinalMatches = (matches: Match[]): void => {
   }
 };
 
+/** Flattens a match map into matches in store order. */
+const flattenMatches = (
+  matchesByRound: RawStore["matches_by_round"],
+  fallbackBase: number,
+): Match[] => {
+  return Object.values(matchesByRound)
+    .flat()
+    .map((match, index) => toMatch(match, index, fallbackBase - index));
+};
+
 /** Flattens the store's rounds into matches in store order and resolves the `finals` side. */
 export const toMatches = (store: RawStore): Match[] => {
-  const matches = Object.values(store.matches_by_round)
-    .flat()
-    .map((match, index) => toMatch(match, index, -index - 1));
+  const matches = flattenMatches(store.matches_by_round, -1);
 
   resolveFinalMatches(matches);
   return matches;
+};
+
+/** Builds nested group-stage brackets from the store. */
+export const toGroups = (store: RawStore): TournamentGroup[] => {
+  return (store.groups ?? []).map((group: RawGroup, groupIndex) => {
+    const name = group.name?.trim() ?? `Group ${groupIndex + 1}`;
+    const matches = flattenMatches(group.matches_by_round, -1_000_000 - groupIndex * 100_000);
+
+    return {
+      id: group.tournament?.id ?? groupIndex + 1,
+      name,
+      matches: matches.map((match) => ({ ...match, group: name })),
+    };
+  });
 };
 
 /** Builds round metadata from the store, appending rounds only present in matches. */
@@ -158,6 +209,7 @@ export const toRounds = (rawRounds: RawStore["rounds"], matches: Match[]): Round
 export const collectParticipants = (
   rawParticipants: RawStore["participants"],
   matches: Match[],
+  groups: TournamentGroup[] = [],
 ): Player[] => {
   const participants = new Map<number, Player>();
 
@@ -166,8 +218,8 @@ export const collectParticipants = (
     if (participant) participants.set(participant.id, participant);
   }
 
-  for (const match of matches) {
-    for (const participant of [match.player1, match.player2]) {
+  for (const match of [...matches, ...groups.flatMap((group) => group.matches)]) {
+    for (const participant of [match.player1, match.player2, ...(match.entrants ?? [])]) {
       if (participant) participants.set(participant.id, participant);
     }
   }

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { errorMessage } from "@/lib/error.utils";
 import {
   useDeleteTournament,
-  useRefreshTournamentBySlug,
+  usePrefetchTournament,
+  useRefreshTournamentByKey,
   useSavedTournaments,
 } from "./useTournament.hook";
 
@@ -10,7 +11,8 @@ import {
 export const useTournamentList = () => {
   const saved = useSavedTournaments();
   const remove = useDeleteTournament();
-  const refresh = useRefreshTournamentBySlug();
+  const refresh = useRefreshTournamentByKey();
+  const prefetchTournament = usePrefetchTournament();
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const items = saved.data ?? [];
@@ -37,14 +39,15 @@ export const useTournamentList = () => {
     refreshErrorText: errorMessage(refresh.error, "Не удалось обновить турнир"),
     pendingDelete,
     deleting: remove.isPending,
-    refreshingSlug: refresh.isPending ? refresh.variables : null,
-    askDelete: (slug: string) => {
-      setPendingDelete(slug);
+    refreshingKey: refresh.isPending ? refresh.variables : null,
+    askDelete: (key: string) => {
+      setPendingDelete(key);
     },
     cancelDelete: () => {
       setPendingDelete(null);
     },
     refreshTournament,
+    prefetchTournament,
     confirmDelete,
   };
 };

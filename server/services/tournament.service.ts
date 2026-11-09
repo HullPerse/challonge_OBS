@@ -3,6 +3,7 @@ import { attemptSync } from "@hullperse/hp_utils/attempt";
 import { desc, eq } from "drizzle-orm";
 import { snapshotSchema } from "@/lib/schemas/server/tournament.schema";
 import VisibilityUtils from "@/lib/server/visibility.utils";
+import type { CachedSnapshot } from "@/types/server/tournament";
 import type {
   TournamentSnapshot,
   TournamentSummary,
@@ -10,12 +11,6 @@ import type {
 } from "@/types/tournament";
 import type { DatabaseClient } from "../db/client.db";
 import { tournaments, tournamentVisibility } from "../db/schema.db";
-
-type CachedSnapshot = {
-  snapshot: TournamentSnapshot;
-  matchIds: Set<number>;
-  roundNumbers: Set<number>;
-};
 
 /** Stores validated snapshots and visibility in SQLite. */
 export default class TournamentService {
@@ -30,7 +25,9 @@ export default class TournamentService {
   list(): TournamentSummary[] {
     const data = this.database.orm
       .select({
+        key: tournaments.key,
         slug: tournaments.slug,
+        host: tournaments.host,
         name: tournaments.name,
         tournamentType: tournaments.tournamentType,
         fetchedAt: tournaments.fetchedAt,
@@ -44,38 +41,38 @@ export default class TournamentService {
     return data;
   }
 
-  exists(slug: string): boolean {
+  exists(key: string): boolean {
     const data = this.database.orm
-      .select({ slug: tournaments.slug })
+      .select({ key: tournaments.key })
       .from(tournaments)
-      .where(eq(tournaments.slug, slug))
+      .where(eq(tournaments.key, key))
       .get();
 
     return !!data;
   }
 
   /** Loads a snapshot from memory, or parses and caches it once. */
-  get(slug: string): TournamentSnapshot | null {
-    const cached = this.snapshots.get(slug);
+  get(key: string): TournamentSnapshot | null {
+    const cached = this.snapshots.get(key);
 
     if (cached) {
-      this.touch(slug, cached);
+      this.touch(key, cached);
       return cached.snapshot;
     }
 
-    return this.read(slug)?.snapshot ?? null;
+    return this.read(key)?.snapshot ?? null;
   }
 
-  private read(slug: string): CachedSnapshot | null {
+  private read(key: string): CachedSnapshot | null {
     const data = this.database.orm
       .select({ snapshot: tournaments.snapshot })
       .from(tournaments)
-      .where(eq(tournaments.slug, slug))
+      .where(eq(tournaments.key, key))
       .get();
 
     if (!data) return null;
 
-    const [parse, parseError] = attemptSync(() => JSON.parse(data.snapshot) as unknown);
+    const [parse, parseError] = attemptSync<unknown>(() => JSON.parse(data.snapshot));
 
     if (parseError) return null;
 
@@ -92,8 +89,8 @@ export default class TournamentService {
       roundNumbers: new Set(snapshot.rounds.map(({ number }) => number)),
     };
 
-    this.snapshots.delete(snapshot.slug);
-    this.snapshots.set(snapshot.slug, cached);
+    this.snapshots.delete(snapshot.key);
+    this.snapshots.set(snapshot.key, cached);
 
     if (this.snapshots.size > SNAPSHOT_CACHE_LIMIT) {
       const oldest = this.snapshots.keys().next().value;
@@ -103,15 +100,18 @@ export default class TournamentService {
     return cached;
   }
 
-  private touch(slug: string, cached: CachedSnapshot) {
-    this.snapshots.delete(slug);
-    this.snapshots.set(slug, cached);
+  private touch(key: string, cached: CachedSnapshot) {
+    this.snapshots.delete(key);
+    this.snapshots.set(key, cached);
   }
 
   save(snapshot: TournamentSnapshot): TournamentSnapshot {
-    const slug = snapshot.slug;
+    const key = snapshot.key;
+    const host = key.slice(0, key.indexOf("/"));
 
     const values = {
+      slug: snapshot.slug,
+      host,
       name: snapshot.name,
       tournamentType: snapshot.tournamentType,
       sourceUrl: snapshot.sourceUrl,
@@ -123,9 +123,9 @@ export default class TournamentService {
 
     this.database.orm
       .insert(tournaments)
-      .values({ slug, ...values })
+      .values({ key, ...values })
       .onConflictDoUpdate({
-        target: tournaments.slug,
+        target: tournaments.key,
         set: values,
       })
       .run();
@@ -135,35 +135,35 @@ export default class TournamentService {
   }
 
   /** Deletes a snapshot and its visibility; returns false when missing. */
-  remove(slug: string): boolean {
+  remove(key: string): boolean {
     const removed = this.database.orm.transaction((transaction) => {
       const existing = transaction
-        .select({ slug: tournaments.slug })
+        .select({ key: tournaments.key })
         .from(tournaments)
-        .where(eq(tournaments.slug, slug))
+        .where(eq(tournaments.key, key))
         .get();
 
       if (!existing) return false;
 
-      transaction.delete(tournamentVisibility).where(eq(tournamentVisibility.slug, slug)).run();
+      transaction.delete(tournamentVisibility).where(eq(tournamentVisibility.key, key)).run();
 
-      transaction.delete(tournaments).where(eq(tournaments.slug, slug)).run();
+      transaction.delete(tournaments).where(eq(tournaments.key, key)).run();
 
       return true;
     });
 
-    if (removed) this.snapshots.delete(slug);
+    if (removed) this.snapshots.delete(key);
     return removed;
   }
 
-  getVisibility(slug: string): TournamentVisibility {
+  getVisibility(key: string): TournamentVisibility {
     const row = this.database.orm
       .select({
         hiddenMatches: tournamentVisibility.hiddenMatches,
         hiddenRounds: tournamentVisibility.hiddenRounds,
       })
       .from(tournamentVisibility)
-      .where(eq(tournamentVisibility.slug, slug))
+      .where(eq(tournamentVisibility.key, key))
       .get();
 
     if (!row) return VisibilityUtils.empty();
@@ -175,9 +175,9 @@ export default class TournamentService {
   }
 
   /** Saves normalized visibility pruned to the snapshot. */
-  saveVisibility(slug: string, visibility: TournamentVisibility): TournamentVisibility {
+  saveVisibility(key: string, visibility: TournamentVisibility): TournamentVisibility {
     const normalized = VisibilityUtils.normalize(visibility);
-    const cached = this.snapshots.get(slug) ?? this.read(slug);
+    const cached = this.snapshots.get(key) ?? this.read(key);
 
     let pruned = normalized;
     if (cached) {
@@ -185,13 +185,13 @@ export default class TournamentService {
     }
 
     const values = {
-      slug,
+      key,
       hiddenMatches: JSON.stringify(pruned.hiddenMatches),
       hiddenRounds: JSON.stringify(pruned.hiddenRounds),
     };
 
     const config = {
-      target: tournamentVisibility.slug,
+      target: tournamentVisibility.key,
       set: {
         hiddenMatches: values.hiddenMatches,
         hiddenRounds: values.hiddenRounds,

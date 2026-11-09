@@ -10,16 +10,17 @@ import { useOverlayState } from "./useOverlay.hook";
 /** Local overlay-preview switch; it is not part of the server state. */
 export const usePreviewInApp = (): boolean => useCell(overlayStore.previewInApp);
 
-/** Card fields and round headings for the control panel preview. */
+/** Card fields, round headings and background for the control panel preview. */
 export const useAppBracketView = (
   overlayState: OverlayState | null,
   snapshot: TournamentSnapshot | null,
-): { cardView: MatchCardView; showRoundTitles: boolean } => {
+): { cardView: MatchCardView; showRoundTitles: boolean; showBackground: boolean } => {
   const previewInApp = usePreviewInApp();
 
   return {
     cardView: appCardView(previewInApp, overlayState?.modules ?? null, snapshot),
     showRoundTitles: !previewInApp || !overlayState || overlayState.modules.roundTitles,
+    showBackground: !previewInApp || !overlayState || overlayState.modules.background,
   };
 };
 

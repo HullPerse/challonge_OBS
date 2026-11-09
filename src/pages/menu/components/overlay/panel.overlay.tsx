@@ -1,53 +1,14 @@
 import { Fragment, useRef, useState } from "react";
 
 import Loader from "@/components/ui/loader.component";
-import { Slider } from "@/components/ui/slider.component";
 import { Switch } from "@/components/ui/switch.component";
-import {
-  OVERLAY_CURSOR_SIZE,
-  OVERLAY_MODULE_GROUPS,
-  OVERLAY_MODULE_LABELS,
-} from "@/configs/overlay.config";
+import { OVERLAY_MODULE_GROUPS, OVERLAY_MODULE_LABELS } from "@/configs/overlay.config";
 import { usePreviewInApp } from "@/hooks/useOverlayPreview.hook";
 import { useSetOverlayModules, useSetPointerSize } from "@/hooks/useOverlay.hook";
 import { errorMessage } from "@/lib/error.utils";
 import { overlayStore } from "@/stores/overlay.store";
-import type { OverlayModuleKey, OverlayState } from "@/types/overlay";
-
-type PendingModules = Partial<Record<OverlayModuleKey, { value: boolean; sequence: number }>>;
-
-function CursorSizeRow({
-  persistedSize,
-  disabled,
-  onCommit,
-}: {
-  persistedSize: number;
-  disabled: boolean;
-  onCommit: (value: number) => void;
-}) {
-  const [value, setValue] = useState<number>(persistedSize);
-
-  return (
-    <div className="rounded-ui px-2 py-1.5">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-text-secondary">Размер курсора</span>
-        <span className="text-[10px] tabular-nums text-text-muted">{value} px</span>
-      </div>
-      <Slider
-        defaultValue={persistedSize}
-        min={OVERLAY_CURSOR_SIZE.min}
-        max={OVERLAY_CURSOR_SIZE.max}
-        step={OVERLAY_CURSOR_SIZE.step}
-        label="Размер курсора"
-        disabled={disabled}
-        onValueChange={(next) => {
-          setValue(next);
-        }}
-        onValueCommitted={onCommit}
-      />
-    </div>
-  );
-}
+import type { OverlayModuleKey, OverlayState, PendingOverlayModules } from "@/types/overlay";
+import CursorSizeRow from "./cursorSize.overlay";
 
 function OverlayPanel({
   state,
@@ -61,7 +22,7 @@ function OverlayPanel({
   const modules = useSetOverlayModules();
   const pointerSize = useSetPointerSize();
   const previewInApp = usePreviewInApp();
-  const [pendingModules, setPendingModules] = useState<PendingModules>({});
+  const [pendingModules, setPendingModules] = useState<PendingOverlayModules>({});
   const pendingSequence = useRef<number>(0);
   const persistedSize = state?.pointerSize;
 
@@ -118,7 +79,7 @@ function OverlayPanel({
         <label
           htmlFor="overlay-preview-in-app"
           className="min-w-0 cursor-pointer truncate text-xs text-text-secondary"
-          title="Применять настройки отображения оверлея к карточкам и модалкам приложения"
+          title="Применять настройки отображения оверлея к карточкам, модалкам и фону приложения"
         >
           Превью в приложении
         </label>
@@ -131,7 +92,7 @@ function OverlayPanel({
           }}
           disabled={!state}
           aria-label="Показывать настройки оверлея в приложении"
-          title="Применять настройки отображения оверлея к карточкам и модалкам приложения"
+          title="Применять настройки отображения оверлея к карточкам, модалкам и фону приложения"
         />
       </section>
 

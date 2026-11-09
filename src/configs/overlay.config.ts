@@ -67,6 +67,9 @@ export const OVERLAY_MODULE_LABELS: Record<OverlayModuleKey, string> = {
   completedDim: "Завершённые матчи",
 };
 
+/** Coalesce high-frequency camera and pointer writes into one request window. */
+export const OVERLAY_WRITE_DELAY_MS = 40;
+
 /** Fixed overlay stage size in CSS pixels. */
 export const OVERLAY_STAGE_WIDTH: number = 1920;
 export const OVERLAY_STAGE_HEIGHT: number = 1080;
@@ -77,7 +80,7 @@ export const OVERLAY_CURSOR_SIZE = {
   max: 64,
   step: 2,
   default: 48,
-} as const;
+};
 
 /** Element id of the server-inlined first-paint state. */
 export const OVERLAY_BOOTSTRAP_ID = "overlay-bootstrap";

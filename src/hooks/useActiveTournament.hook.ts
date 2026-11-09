@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { DEFAULT_VIEW } from "@/configs/overlay.config";
 import { resolveSelectionState } from "@/lib/tournament/selection.utils";
+import { activeTournamentActions, activeTournamentStore } from "@/stores/activeTournament.store";
+import type { ActiveTournamentActions, ActiveTournamentState } from "@/types/activeTournament";
 import { useOverlayState, useSelectTournament } from "./useOverlay.hook";
 import {
   useRefreshTournament,
@@ -9,22 +11,43 @@ import {
   useTournamentSnapshot,
 } from "./useTournament.hook";
 
+export const activeTournamentSelectors = {
+  snapshot: (state: ActiveTournamentState) => state.snapshot,
+  key: (state: ActiveTournamentState) => state.key,
+  savedTournaments: (state: ActiveTournamentState) => state.savedTournaments,
+  overlayState: (state: ActiveTournamentState) => state.overlayState,
+  isLoading: (state: ActiveTournamentState) => state.isLoading,
+  notFound: (state: ActiveTournamentState) => state.notFound,
+  isEmpty: (state: ActiveTournamentState) => state.isEmpty,
+  error: (state: ActiveTournamentState) => state.error,
+  selectionError: (state: ActiveTournamentState) => state.selectionError,
+  selecting: (state: ActiveTournamentState) => state.selecting,
+  isRefreshing: (state: ActiveTournamentState) => state.isRefreshing,
+  refreshError: (state: ActiveTournamentState) => state.refreshError,
+  lastUpdated: (state: ActiveTournamentState) => state.lastUpdated,
+} satisfies Record<string, (state: ActiveTournamentState) => unknown>;
+
 const useActiveSelection = () => {
   const overlay = useOverlayState();
   const saved = useSavedTournaments();
   const select = useSelectTournament();
-  const savedList = saved.data ?? [];
-  const activeSlug = overlay.data?.activeSlug ?? null;
+  const savedList = useMemo(() => saved.data ?? [], [saved.data]);
+  const activeKey = overlay.data?.activeKey ?? null;
   const selection = resolveSelectionState({
     isSavedReady: saved.isSuccess,
     isOverlayReady: overlay.isSuccess,
     isSelectionFailed: select.isError,
-    activeSlug,
+    activeKey,
     savedList,
   });
-  const resolvedSlug = selection.status === "ready" ? selection.slug : null;
-  const targetSlug = selection.status === "selecting" ? selection.targetSlug : null;
+  const resolvedKey = selection.status === "ready" ? selection.key : null;
+  const targetKey = selection.status === "selecting" ? selection.targetKey : null;
   const selectMutation = select.mutate;
+  const selectVariables = select.variables;
+  const resetSelection = select.reset;
+  const selectionFailed = select.isError;
+  const refetchSaved = saved.refetch;
+  const refetchOverlay = overlay.refetch;
 
   const isLoading =
     overlay.isPending ||
@@ -33,41 +56,44 @@ const useActiveSelection = () => {
     selection.status === "selecting";
 
   useEffect(() => {
-    if (targetSlug === null || !overlay.data) return;
+    if (targetKey === null || !overlay.data) return;
     if (select.isPending || select.isError) return;
 
     selectMutation({
-      activeSlug: targetSlug,
+      activeKey: targetKey,
       view: overlay.data.view,
     });
-  }, [overlay.data, select.isError, select.isPending, selectMutation, targetSlug]);
+  }, [overlay.data, select.isError, select.isPending, selectMutation, targetKey]);
 
-  const selectTournament = (slug: string | null) => {
-    if (slug === overlay.data?.activeSlug) return;
+  const selectTournament = useCallback(
+    (key: string | null) => {
+      if (key === overlay.data?.activeKey) return;
 
-    selectMutation({
-      activeSlug: slug,
-      view: overlay.data?.view ?? DEFAULT_VIEW,
-    });
-  };
+      selectMutation({
+        activeKey: key,
+        view: overlay.data?.view ?? DEFAULT_VIEW,
+      });
+    },
+    [overlay.data?.activeKey, overlay.data?.view, selectMutation],
+  );
 
-  const retrySelection = () => {
-    if (select.variables) {
-      selectMutation(select.variables);
+  const retrySelection = useCallback(() => {
+    if (selectVariables) {
+      selectMutation(selectVariables);
       return;
     }
 
-    select.reset();
-  };
+    resetSelection();
+  }, [resetSelection, selectMutation, selectVariables]);
 
-  const retry = async (): Promise<void> => {
-    await Promise.all([saved.refetch(), overlay.refetch()]);
-    if (select.isError) retrySelection();
-  };
+  const retry = useCallback(async (): Promise<void> => {
+    await Promise.all([refetchSaved(), refetchOverlay()]);
+    if (selectionFailed) retrySelection();
+  }, [refetchOverlay, refetchSaved, retrySelection, selectionFailed]);
 
   return {
     savedList,
-    resolvedSlug,
+    resolvedKey,
     overlayState: overlay.data ?? null,
     isLoading,
     isEmpty: saved.isSuccess && savedList.length === 0,
@@ -80,30 +106,34 @@ const useActiveSelection = () => {
   };
 };
 
-export const useActiveTournament = () => {
+const useActiveTournamentData = () => {
   const selection = useActiveSelection();
-  const tournament = useTournamentSnapshot(selection.resolvedSlug);
+  const tournament = useTournamentSnapshot(selection.resolvedKey);
   const refresh = useRefreshTournament();
   const snapshot = tournament.data ?? null;
 
   const retryMutation = useMutation({
     mutationFn: async (): Promise<void> => {
       await selection.retry();
-      if (selection.resolvedSlug) await tournament.refetch();
+      if (selection.resolvedKey) await tournament.refetch();
     },
   });
 
-  const retry = (): void => {
-    retryMutation.mutate();
-  };
+  const retryMutationNow = retryMutation.mutate;
+  const refreshNow = refresh.mutate;
+  const refreshPending = refresh.isPending;
 
-  const refreshTournamentNow = () => {
-    if (snapshot && !refresh.isPending) refresh.mutate(snapshot);
-  };
+  const retry = useCallback((): void => {
+    retryMutationNow();
+  }, [retryMutationNow]);
+
+  const refreshTournamentNow = useCallback((): void => {
+    if (snapshot && !refreshPending) refreshNow(snapshot);
+  }, [refreshNow, refreshPending, snapshot]);
 
   return {
     snapshot,
-    slug: selection.resolvedSlug,
+    key: selection.resolvedKey,
     savedTournaments: selection.savedList,
     overlayState: selection.overlayState,
     isLoading: selection.isLoading || tournament.isLoading,
@@ -113,7 +143,7 @@ export const useActiveTournament = () => {
     selectionError: selection.selectionError,
     selecting: selection.selecting,
     isRefreshing: refresh.isPending,
-    refreshError: refresh.variables?.slug === selection.resolvedSlug ? refresh.error : null,
+    refreshError: refresh.variables?.key === selection.resolvedKey ? refresh.error : null,
     lastUpdated: snapshot?.fetchedAt ?? null,
     selectTournament: selection.selectTournament,
     retry,
@@ -121,3 +151,66 @@ export const useActiveTournament = () => {
     refresh: refreshTournamentNow,
   };
 };
+
+/** Runs once at the menu root and publishes the React Query result into the store. */
+export const useActiveTournamentSync = (): void => {
+  const tournament = useActiveTournamentData();
+  const state = useMemo<ActiveTournamentState>(
+    () => ({
+      snapshot: tournament.snapshot,
+      key: tournament.key,
+      savedTournaments: tournament.savedTournaments,
+      overlayState: tournament.overlayState,
+      isLoading: tournament.isLoading,
+      notFound: tournament.notFound,
+      isEmpty: tournament.isEmpty,
+      error: tournament.error,
+      selectionError: tournament.selectionError,
+      selecting: tournament.selecting,
+      isRefreshing: tournament.isRefreshing,
+      refreshError: tournament.refreshError,
+      lastUpdated: tournament.lastUpdated,
+    }),
+    [
+      tournament.error,
+      tournament.isEmpty,
+      tournament.isLoading,
+      tournament.isRefreshing,
+      tournament.key,
+      tournament.lastUpdated,
+      tournament.notFound,
+      tournament.overlayState,
+      tournament.refreshError,
+      tournament.savedTournaments,
+      tournament.selectionError,
+      tournament.selecting,
+      tournament.snapshot,
+    ],
+  );
+  const actions = useMemo<ActiveTournamentActions>(
+    () => ({
+      selectTournament: tournament.selectTournament,
+      retry: tournament.retry,
+      retrySelection: tournament.retrySelection,
+      refresh: tournament.refresh,
+    }),
+    [tournament.refresh, tournament.retry, tournament.retrySelection, tournament.selectTournament],
+  );
+
+  useLayoutEffect(() => {
+    activeTournamentStore.setState(state);
+    activeTournamentStore.setActions(actions);
+  }, [actions, state]);
+};
+
+/** Subscribes a component to one stable slice of the active-tournament state. */
+export const useActiveTournamentSelector = <T>(
+  selector: (state: ActiveTournamentState) => T,
+): T => {
+  const getSnapshot = useCallback(() => selector(activeTournamentStore.state.get()), [selector]);
+
+  return useSyncExternalStore(activeTournamentStore.state.subscribe, getSnapshot, getSnapshot);
+};
+
+/** Stable action handles; they do not subscribe to state changes. */
+export const useActiveTournamentActions = (): ActiveTournamentActions => activeTournamentActions;

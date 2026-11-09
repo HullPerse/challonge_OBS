@@ -1,3 +1,4 @@
+import { isEliminationTournament } from "@/configs/tournament.config";
 import type { BracketResult } from "@/types/bracket";
 import type { Match, TournamentSnapshot } from "@/types/tournament";
 
@@ -41,17 +42,27 @@ const findFinal = (snapshot: TournamentSnapshot): Match | null => {
 /** Winner, runner-up and score of a completed tournament. */
 export const tournamentResult = (snapshot: TournamentSnapshot): BracketResult | null => {
   if (snapshot.state !== "complete") return null;
+  if (!isEliminationTournament(snapshot.tournamentType)) return null;
 
   const final = findFinal(snapshot);
   if (!final || final.winnerId === null) return null;
 
   const winnerIsFirst = final.player1?.id === final.winnerId;
-  const winner = winnerIsFirst ? final.player1 : final.player2;
+  const sides = winnerIsFirst
+    ? {
+        winner: final.player1,
+        loser: final.player2,
+        winnerScore: final.score1,
+        loserScore: final.score2,
+      }
+    : {
+        winner: final.player2,
+        loser: final.player1,
+        winnerScore: final.score2,
+        loserScore: final.score1,
+      };
+  const { winner, loser, winnerScore, loserScore } = sides;
   if (!winner) return null;
-
-  const loser = winnerIsFirst ? final.player2 : final.player1;
-  const winnerScore = winnerIsFirst ? final.score1 : final.score2;
-  const loserScore = winnerIsFirst ? final.score2 : final.score1;
   const score =
     winnerScore !== null && loserScore !== null ? `${winnerScore} : ${loserScore}` : "-";
 

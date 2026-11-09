@@ -3,6 +3,7 @@ import MatchDetails from "@/components/match/details.match";
 import PlayerHistory from "@/components/player/history.player";
 import Button from "@/components/ui/button.component";
 import OverlayDialogFrame from "@/components/overlay/frame.overlay";
+import { MATCH_ACTION_LABELS, MATCH_LABEL } from "@/configs/bracket.config";
 import { matchStateLabel, overlayDialogView } from "@/lib/bracket/match.utils";
 import { roundTitle } from "@/lib/sidebar.utils";
 import type { OverlayScene } from "@/types/overlay";
@@ -19,7 +20,9 @@ function OverlayDialog({ scene }: { scene: OverlayScene | null }) {
     const match = snapshot.matches.find((item) => item.id === modal.matchId);
     if (!match) return null;
 
-    const title = view.matchNumbers ? `Матч ${match.identifier ?? match.id}` : "Матч";
+    const title = view.matchNumbers
+      ? `${MATCH_LABEL} ${match.identifier ?? match.id}`
+      : MATCH_LABEL;
 
     return (
       <OverlayDialogFrame
@@ -34,7 +37,7 @@ function OverlayDialog({ scene }: { scene: OverlayScene | null }) {
             tabIndex={-1}
             aria-hidden="true"
           >
-            Скрыть матч
+            {MATCH_ACTION_LABELS.hide}
           </Button>
         </div>
       </OverlayDialogFrame>

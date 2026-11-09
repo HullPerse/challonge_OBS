@@ -3,13 +3,20 @@ import type {
   Player,
   RawStore,
   Round,
+  TournamentGroup,
   TournamentSnapshotWrite,
 } from "@/types/tournament";
 
+import { CHALLONGE_DOMAIN, isChallongeHost } from "@/configs/tournament.config";
 import { extractCanonicalUrl, extractName, parseStore } from "./extract.tournament";
-import { canonicalSlug as resolveSlug, isChallongeUrl, isUrl } from "./slug.tournament";
+import {
+  canonicalSlug as resolveSlug,
+  isChallongeUrl,
+  isUrl,
+  tournamentKey,
+} from "./slug.tournament";
 import { attemptSync } from "@hullperse/hp_utils/attempt";
-import { collectParticipants, toMatches, toRounds } from "./map.tournament";
+import { collectParticipants, toGroups, toMatches, toRounds } from "./map.tournament";
 
 /** True when pasted input looks like an HTML document. */
 const looksLikeHtml = (input: string): boolean => {
@@ -30,10 +37,26 @@ const sameSlug = (input: string, expected: string): boolean => {
   return !error && slug === expected;
 };
 
+/** Keeps the tournament subdomain, falling back to the main domain for bare slugs. */
+const resolveHost = (sourceUrl: string, canonicalUrl: string | null): string => {
+  const [source] = attemptSync(() => new URL(sourceUrl.trim()));
+  if (source && isChallongeHost(source.hostname)) return source.hostname.toLowerCase();
+
+  if (canonicalUrl) {
+    const [canonical] = attemptSync(() => new URL(canonicalUrl.trim()));
+    if (canonical && isChallongeHost(canonical.hostname)) return canonical.hostname.toLowerCase();
+  }
+
+  return CHALLONGE_DOMAIN;
+};
+
 /** Parses Challonge module HTML/JSON into a tournament snapshot. */
 export class TournamentParser {
   /** Lowercase Challonge slug derived from the source URL. */
   readonly slug: string;
+
+  /** Challonge host, so subdomain tournaments keep their own refresh URL. */
+  readonly host: string;
 
   /** Tournament title from the page metadata or a slug-based fallback. */
   readonly name: string;
@@ -43,6 +66,9 @@ export class TournamentParser {
 
   /** Rounds sorted winners-first, with missing entries rebuilt from matches. */
   readonly rounds: Round[];
+
+  /** Nested group-stage brackets. */
+  readonly groups: TournamentGroup[];
 
   /** Unique participants from the store and matches, sorted by seed. */
   readonly participants: Player[];
@@ -75,18 +101,26 @@ export class TournamentParser {
 
     const canonicalUrl = extractCanonicalUrl(input);
 
+    this.host = resolveHost(sourceUrl, canonicalUrl);
+
     if (canonicalUrl && (!isChallongeUrl(canonicalUrl) || !sameSlug(canonicalUrl, this.slug))) {
       throw new Error("Ссылка и HTML относятся к разным турнирам");
     }
 
     this.matches = toMatches(this.store);
+    this.groups = toGroups(this.store);
     this.rounds = toRounds(this.store.rounds, this.matches);
-    this.participants = collectParticipants(this.store.participants, this.matches);
+    this.participants = collectParticipants(this.store.participants, this.matches, this.groups);
+  }
+
+  /** Unique tournament identity. */
+  get key(): string {
+    return tournamentKey(this.host, this.slug);
   }
 
   /** Public Challonge URL normalized from the slug. */
   get sourceUrl(): string {
-    return `https://challonge.com/${this.slug}`;
+    return `https://${this.host}/${this.slug}`;
   }
 
   /** Projects the parsed tournament into the stored snapshot format. */
@@ -95,6 +129,7 @@ export class TournamentParser {
 
     return {
       version: 1,
+      key: this.key,
       tournamentId: tournament.id,
       sourceUrl: this.sourceUrl,
       slug: this.slug,
@@ -107,6 +142,7 @@ export class TournamentParser {
       hideIdentifiers: tournament.hide_identifiers ?? false,
       rounds: this.rounds,
       matches: this.matches,
+      ...(this.groups.length > 0 ? { groups: this.groups } : {}),
     };
   }
 }

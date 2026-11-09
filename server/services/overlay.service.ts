@@ -24,7 +24,7 @@ import type {
 } from "@/types/overlay";
 import type { TournamentSnapshot, TournamentVisibility } from "@/types/tournament";
 import type { DatabaseClient } from "../db/client.db";
-import { readOverlayState, writeOverlayState } from "../db/overlay-state.db";
+import { readOverlayState, writeOverlayState } from "../db/overlay.db";
 import type TournamentService from "./tournament.service";
 
 /** Owns overlay state, SQLite persistence, and SSE subscribers. */
@@ -33,7 +33,7 @@ export default class OverlayService {
   private readonly database: DatabaseClient;
   private readonly hub = createSseHub<OverlayEvent>();
 
-  private activeSlug: string | null = null;
+  private activeKey: string | null = null;
   private view: OverlayView = { ...DEFAULT_VIEW };
   private pointer: OverlayPointer = { ...DEFAULT_POINTER };
   private pointerSize: number = OVERLAY_CURSOR_SIZE.default;
@@ -51,7 +51,7 @@ export default class OverlayService {
 
   getState(): OverlayState {
     return {
-      activeSlug: this.activeSlug,
+      activeKey: this.activeKey,
       view: { ...this.view },
       pointer: { ...this.pointer },
       pointerSize: this.pointerSize,
@@ -79,23 +79,23 @@ export default class OverlayService {
 
   /** Updates the active slug and camera view. */
   setView(input: OverlaySetViewInput): OverlayViewResult {
-    const slugChanged = input.activeSlug !== this.activeSlug;
-    const tournament = this.resolveTournament(input.activeSlug, slugChanged);
+    const keyChanged = input.activeKey !== this.activeKey;
+    const tournament = this.resolveTournament(input.activeKey, keyChanged);
 
-    if (slugChanged && input.activeSlug && !tournament) {
+    if (keyChanged && input.activeKey && !tournament) {
       return { ok: false, status: 404, error: "Tournament not found" };
     }
 
-    this.activeSlug = input.activeSlug;
+    this.activeKey = input.activeKey;
     this.view = { ...input.view };
-    if (slugChanged) {
+    if (keyChanged) {
       this.highlightedPlayerId = null;
       this.modal = null;
     }
     this.touch();
     this.persist();
 
-    if (slugChanged || this.modules.camera) {
+    if (keyChanged || this.modules.camera) {
       this.hub.publish(this.createStateEvent(tournament));
     }
 
@@ -180,8 +180,8 @@ export default class OverlayService {
   }
 
   /** Broadcasts visibility for the active tournament. */
-  updateVisibility(slug: string, visibility: TournamentVisibility) {
-    if (!this.isActive(slug)) return;
+  updateVisibility(key: string, visibility: TournamentVisibility) {
+    if (!this.isActive(key)) return;
 
     this.touch();
     this.persist();
@@ -195,7 +195,7 @@ export default class OverlayService {
 
   /** Broadcasts an updated active snapshot. */
   updateTournament(snapshot: TournamentSnapshot) {
-    if (!this.isActive(snapshot.slug)) return;
+    if (!this.isActive(snapshot.key)) return;
 
     this.touch();
     this.persist();
@@ -209,10 +209,10 @@ export default class OverlayService {
   }
 
   /** Clears the overlay when its active tournament is deleted. */
-  removeTournament(slug: string) {
-    if (!this.isActive(slug)) return;
+  removeTournament(key: string) {
+    if (!this.isActive(key)) return;
 
-    this.activeSlug = null;
+    this.activeKey = null;
     this.view = { ...DEFAULT_VIEW };
     this.pointer = { ...DEFAULT_POINTER, visible: false };
     this.highlightedPlayerId = null;
@@ -242,10 +242,10 @@ export default class OverlayService {
     return snapshot.participants.some((player) => player.id === modal.playerId);
   }
 
-  private resolveTournament(slug: string | null, slugChanged: boolean): TournamentSnapshot | null {
-    if (!slugChanged || !slug) return null;
+  private resolveTournament(key: string | null, keyChanged: boolean): TournamentSnapshot | null {
+    if (!keyChanged || !key) return null;
 
-    return this.tournaments.get(slug);
+    return this.tournaments.get(key);
   }
 
   private createStateEvent(tournament: TournamentSnapshot | null): OverlayStateEvent {
@@ -272,17 +272,17 @@ export default class OverlayService {
   }
 
   private getActiveTournament(): TournamentSnapshot | null {
-    if (!this.activeSlug) return null;
-    return this.tournaments.get(this.activeSlug);
+    if (!this.activeKey) return null;
+    return this.tournaments.get(this.activeKey);
   }
 
   private getVisibility(): TournamentVisibility {
-    if (!this.activeSlug) return VisibilityUtils.empty();
-    return VisibilityUtils.clone(this.tournaments.getVisibility(this.activeSlug));
+    if (!this.activeKey) return VisibilityUtils.empty();
+    return VisibilityUtils.clone(this.tournaments.getVisibility(this.activeKey));
   }
 
-  private isActive(slug: string): boolean {
-    return slug === this.activeSlug;
+  private isActive(key: string): boolean {
+    return key === this.activeKey;
   }
 
   private restore() {
@@ -290,7 +290,7 @@ export default class OverlayService {
 
     if (!state) return;
 
-    this.activeSlug = state.activeSlug;
+    this.activeKey = state.activeKey;
     this.view = { ...state.view };
     this.pointer = { ...state.pointer };
     this.pointerSize = state.pointerSize;
@@ -298,8 +298,8 @@ export default class OverlayService {
     this.revision = state.revision;
     this.updatedAt = state.updatedAt;
 
-    if (this.activeSlug && !this.tournaments.exists(this.activeSlug)) {
-      this.activeSlug = null;
+    if (this.activeKey && !this.tournaments.exists(this.activeKey)) {
+      this.activeKey = null;
       this.persist();
     }
   }
@@ -308,7 +308,7 @@ export default class OverlayService {
     const state = this.getState();
 
     writeOverlayState(this.database, {
-      activeSlug: state.activeSlug,
+      activeKey: state.activeKey,
       view: state.view,
       pointer: state.pointer,
       pointerSize: state.pointerSize,

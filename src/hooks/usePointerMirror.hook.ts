@@ -1,37 +1,35 @@
 import { useCallback, useEffect, useRef } from "react";
 
+import { useLatestRef } from "@/hooks/useLatestRef.hook";
 import { samePointer } from "@/lib/bracket/viewport.utils";
-import type { OverlayPointer } from "@/types/overlay";
-
-type PointerHandler = (pointer: OverlayPointer) => void;
+import type { OverlayPointer, PointerHandler } from "@/types/overlay";
 
 /** Mirrors bracket pointer positions to the overlay, one update per frame. */
 export const usePointerMirror = (onPointerChange: PointerHandler | undefined) => {
-  const callbackRef = useRef<PointerHandler | undefined>(onPointerChange);
+  const callbackRef = useLatestRef<PointerHandler | undefined>(onPointerChange);
   const frameRef = useRef<number | null>(null);
   const pendingRef = useRef<OverlayPointer | null>(null);
   const lastRef = useRef<OverlayPointer | null>(null);
 
-  useEffect(() => {
-    callbackRef.current = onPointerChange;
-  }, [onPointerChange]);
+  const queuePointer = useCallback(
+    (next: OverlayPointer) => {
+      if (!callbackRef.current) return;
+      if (lastRef.current && samePointer(lastRef.current, next)) return;
 
-  const queuePointer = useCallback((next: OverlayPointer) => {
-    if (!callbackRef.current) return;
-    if (lastRef.current && samePointer(lastRef.current, next)) return;
+      lastRef.current = next;
+      pendingRef.current = next;
+      if (frameRef.current !== null) return;
 
-    lastRef.current = next;
-    pendingRef.current = next;
-    if (frameRef.current !== null) return;
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
 
-    frameRef.current = window.requestAnimationFrame(() => {
-      frameRef.current = null;
-
-      const pending = pendingRef.current;
-      pendingRef.current = null;
-      if (pending) callbackRef.current?.(pending);
-    });
-  }, []);
+        const pending = pendingRef.current;
+        pendingRef.current = null;
+        if (pending) callbackRef.current?.(pending);
+      });
+    },
+    [callbackRef],
+  );
 
   const hidePointer = useCallback(() => {
     const last = lastRef.current;
@@ -46,7 +44,7 @@ export const usePointerMirror = (onPointerChange: PointerHandler | undefined) =>
     }
     pendingRef.current = null;
     callbackRef.current(next);
-  }, []);
+  }, [callbackRef]);
 
   useEffect(() => {
     window.addEventListener("blur", hidePointer);

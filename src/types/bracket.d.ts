@@ -1,6 +1,8 @@
 import type { OverlayModules, OverlayPointer, OverlayView } from "@/types/overlay";
 import type { Match, Player, Round, TournamentSnapshot } from "@/types/tournament";
 
+export type BracketTableView = "bracket" | "groups";
+
 export type BracketPoint = {
   x: number;
   y: number;
@@ -49,6 +51,8 @@ export type PlacedMatch = {
   match: Match;
   x: number;
   y: number;
+  /** Card height for free-for-all matches; two-player cards use the default height. */
+  height?: number;
 };
 
 export type RawPlacement = {
@@ -67,7 +71,7 @@ export type Connector = {
 };
 
 export type BracketSection = {
-  side: "winners" | "losers" | "finals";
+  side: "winners" | "losers" | "finals" | "rounds";
   top: number;
   height: number;
   width: number;
@@ -75,11 +79,20 @@ export type BracketSection = {
   matches: PlacedMatch[];
 };
 
+/** Round title above a row of the non-elimination layout. */
+export type BracketRoundRow = {
+  round: number;
+  title: string;
+  top: number;
+};
+
 export type BracketLayout = {
   width: number;
   height: number;
   sections: BracketSection[];
   connectors: Connector[];
+  /** Present for swiss/round-robin layouts, where rounds stack vertically. */
+  roundRows?: BracketRoundRow[];
 };
 
 export type SectionSide = Round["side"];

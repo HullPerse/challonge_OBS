@@ -2,6 +2,7 @@ import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 import { cn } from "cn";
 
 const Slider = ({
+  value,
   defaultValue,
   min,
   max,
@@ -12,7 +13,8 @@ const Slider = ({
   onValueChange,
   onValueCommitted,
 }: {
-  defaultValue: number;
+  value?: number;
+  defaultValue?: number;
   min: number;
   max: number;
   step: number;
@@ -23,7 +25,7 @@ const Slider = ({
   onValueCommitted: (value: number) => void;
 }) => (
   <SliderPrimitive.Root
-    defaultValue={defaultValue}
+    {...(value === undefined ? { defaultValue } : { value })}
     min={min}
     max={max}
     step={step}

@@ -1,3 +1,4 @@
+import { MAX_GROUPS } from "@/configs/server/validation.config";
 import { z } from "zod";
 
 export const snapshotPlayerSchema = z.object({
@@ -14,6 +15,11 @@ export const snapshotRoundSchema = z.object({
   order: z.number().int(),
 });
 
+export const snapshotEntrantSchema = snapshotPlayerSchema.extend({
+  score: z.number().nullable(),
+  rank: z.number().int().nullable(),
+});
+
 export const snapshotMatchSchema = z.object({
   id: z.number().int(),
   identifier: z.number().int().nullable(),
@@ -24,6 +30,8 @@ export const snapshotMatchSchema = z.object({
   state: z.string(),
   player1: snapshotPlayerSchema.nullable(),
   player2: snapshotPlayerSchema.nullable(),
+  entrants: z.array(snapshotEntrantSchema).optional(),
+  group: z.string().optional(),
   placeholder1: z.string().nullable(),
   placeholder2: z.string().nullable(),
   score1: z.number().nullable(),
@@ -39,9 +47,17 @@ export const snapshotMatchSchema = z.object({
   md5: z.string().nullable(),
 });
 
+/** A nested group-stage bracket. */
+export const snapshotGroupSchema = z.object({
+  id: z.number().int(),
+  name: z.string().min(1),
+  matches: z.array(snapshotMatchSchema),
+});
+
 /** Lenient shape used when reading snapshots saved by older app versions. */
 export const snapshotSchema = z.object({
   version: z.literal(1),
+  key: z.string().min(1),
   tournamentId: z.number().int().positive().optional(),
   sourceUrl: z.string().min(1),
   slug: z.string().min(1),
@@ -54,10 +70,13 @@ export const snapshotSchema = z.object({
   hideIdentifiers: z.boolean(),
   rounds: z.array(snapshotRoundSchema),
   matches: z.array(snapshotMatchSchema),
+  groups: z.array(snapshotGroupSchema).max(MAX_GROUPS).optional(),
 });
 
 export const tournamentSummarySchema = z.object({
+  key: z.string(),
   slug: z.string(),
+  host: z.string(),
   name: z.string(),
   tournamentType: z.string(),
   fetchedAt: z.number(),

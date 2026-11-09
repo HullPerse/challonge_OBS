@@ -1,5 +1,4 @@
 import {
-  ALLOWED_HOSTS,
   CHALLONGE_CACHE_LIMIT,
   CHALLONGE_CACHE_TTL_MS,
   DEFAULT_HTML_CONTENT_TYPE,
@@ -9,18 +8,10 @@ import {
   TARGET_PATH,
   USER_AGENT,
 } from "@/configs/server/challonge.config";
+import { isChallongeHost } from "@/configs/tournament.config";
 import HttpUtils from "@/lib/server/http.utils";
+import type { CachedPage, LoadResult } from "@/types/server/challonge";
 import { attempt, attemptSync } from "@hullperse/hp_utils/attempt";
-
-type CachedPage = {
-  body: string;
-  contentType: string;
-  etag: string | null;
-  lastModified: string | null;
-  expiresAt: number;
-};
-
-type LoadResult = { ok: true; page: CachedPage } | { ok: false; status: number; error: string };
 
 /** Proxies allowed Challonge module pages with revalidation and single-flight. */
 export default class ChallongeService {
@@ -29,7 +20,7 @@ export default class ChallongeService {
 
   private isAllowedTarget(data: URL): boolean {
     const isHttps = data.protocol === "https:";
-    const isAllowedHost = ALLOWED_HOSTS.has(data.hostname);
+    const isAllowedHost = isChallongeHost(data.hostname);
     const isAllowedPath = TARGET_PATH.test(data.pathname);
 
     return isHttps && isAllowedHost && isAllowedPath;
@@ -59,10 +50,15 @@ export default class ChallongeService {
     const [result, resultError] = await attempt(this.load(target, key, cached));
 
     if (resultError) {
+      console.error("challonge: proxy failed", resultError);
       return HttpUtils.errorRes("Challonge request failed", 502);
     }
 
-    if (!result.ok) return HttpUtils.errorRes(result.error, result.status);
+    if (!result.ok) {
+      console.error(`challonge: ${result.error}`, target.href);
+      return HttpUtils.errorRes(result.error, result.status);
+    }
+
     return this.pageResponse(result.page);
   }
 

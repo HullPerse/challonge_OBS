@@ -3,14 +3,15 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { DEV_API_URL, DEV_UI_HOST, DEV_UI_PORT } from "./src/configs/dev.config.ts";
 
 export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
   server: {
-    host: "127.0.0.1",
-    port: 22848,
+    host: DEV_UI_HOST,
+    port: DEV_UI_PORT,
     proxy: {
-      "/api": "http://127.0.0.1:8787",
+      "/api": DEV_API_URL,
     },
   },
   clearScreen: false,

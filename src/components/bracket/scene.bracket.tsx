@@ -1,6 +1,7 @@
 import HiddenBracket from "@/components/bracket/hidden.bracket";
 import MatchCard from "@/components/match/card.match";
-import BracketSectionHeader from "@/components/shared/bracket.component.tsx";
+import BracketSectionHeader from "@/components/shared/bracket.component";
+import BracketRoundHeader from "@/components/shared/bracketRound.component";
 import { SECTION_GAP } from "@/configs/bracket.config";
 import { visibleConnectors } from "@/lib/bracket/visibility.utils";
 import type { BracketLayout, BracketPoint, MatchCardView } from "@/types/bracket";
@@ -65,6 +66,20 @@ function SceneBracket({
             ) : null,
           )}
 
+        {showRoundTitles &&
+          layout.roundRows?.map((row, index) => (
+            <BracketRoundHeader
+              key={row.round}
+              round={row.round}
+              title={row.title}
+              top={row.top}
+              width={layout.width}
+              hidden={hiddenRounds.has(row.round)}
+              onToggleRound={onToggleRound}
+              onFit={index === 0 ? onFit : undefined}
+            />
+          ))}
+
         {secondarySection && (
           <div
             className="absolute left-0 h-px bg-border"
@@ -107,6 +122,7 @@ function SceneBracket({
                   key={`hidden-${placed.match.id}`}
                   left={placed.x}
                   top={placed.y}
+                  height={placed.height}
                   identifier={placed.match.identifier}
                   onRestore={() => {
                     restore(placed.match.id);
@@ -121,6 +137,7 @@ function SceneBracket({
                 match={placed.match}
                 left={placed.x}
                 top={placed.y}
+                height={placed.height}
                 view={cardView}
                 activePlayerId={activePlayerId}
                 onHighlightPlayer={onHighlightPlayer}

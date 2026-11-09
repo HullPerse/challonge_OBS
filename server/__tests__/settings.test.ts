@@ -47,6 +47,7 @@ describe("settings file", () => {
         file,
         JSON.stringify({
           port: 19_000,
+          vite_port: 24_000,
           open_browser: false,
           db_path: "custom/db.sqlite",
         }),
@@ -54,6 +55,7 @@ describe("settings file", () => {
 
       expect(SettingsUtils.loadFile(file)).toEqual({
         port: 19_000,
+        vite_port: 24_000,
         open_browser: false,
         db_path: "custom/db.sqlite",
       });

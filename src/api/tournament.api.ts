@@ -4,6 +4,7 @@ import {
   tournamentSummaryListSchema,
   tournamentVisibilitySchema,
 } from "@/lib/schemas/tournament-snapshot.schema";
+import { splitTournamentKey } from "@/lib/tournament/slug.tournament";
 import type {
   TournamentSnapshot,
   TournamentSnapshotWrite,
@@ -17,7 +18,12 @@ const parseSummaryList = (value: unknown): TournamentSummary[] =>
 const parseVisibility = (value: unknown): TournamentVisibility =>
   tournamentVisibilitySchema.parse(value);
 
-const encodeSlug = (slug: string): string => encodeURIComponent(slug);
+const keyPath = (key: string): string => {
+  const parts = splitTournamentKey(key);
+  if (!parts) throw new Error("Некорректный идентификатор турнира");
+
+  return `/tournaments/${encodeURIComponent(parts.host)}/${encodeURIComponent(parts.slug)}`;
+};
 
 export default class TournamentApi {
   private readonly http: HttpApi;
@@ -30,40 +36,36 @@ export default class TournamentApi {
     return this.http.get("/tournaments", "Не удалось загрузить турниры", parseSummaryList);
   }
 
-  get(slug: string): Promise<TournamentSnapshot | null> {
-    return this.http.getOptional(
-      `/tournaments/${encodeSlug(slug)}`,
-      "Не удалось загрузить турнир",
-      parseSnapshot,
-    );
+  get(key: string): Promise<TournamentSnapshot | null> {
+    return this.http.getOptional(keyPath(key), "Не удалось загрузить турнир", parseSnapshot);
   }
 
   save(snapshot: TournamentSnapshotWrite, createOnly = false): Promise<TournamentSnapshot> {
     const query = createOnly ? "?mode=create" : "";
 
     return this.http.put(
-      `/tournaments/${encodeSlug(snapshot.slug)}${query}`,
+      `${keyPath(snapshot.key)}${query}`,
       snapshot,
       "Не удалось сохранить турнир",
       parseSnapshot,
     );
   }
 
-  remove(slug: string): Promise<void> {
-    return this.http.delete(`/tournaments/${encodeSlug(slug)}`, "Не удалось удалить турнир");
+  remove(key: string): Promise<void> {
+    return this.http.delete(keyPath(key), "Не удалось удалить турнир");
   }
 
-  getVisibility(slug: string): Promise<TournamentVisibility> {
+  getVisibility(key: string): Promise<TournamentVisibility> {
     return this.http.get(
-      `/tournaments/${encodeSlug(slug)}/visibility`,
+      `${keyPath(key)}/visibility`,
       "Не удалось загрузить видимость турнира",
       parseVisibility,
     );
   }
 
-  saveVisibility(slug: string, visibility: TournamentVisibility): Promise<TournamentVisibility> {
+  saveVisibility(key: string, visibility: TournamentVisibility): Promise<TournamentVisibility> {
     return this.http.put(
-      `/tournaments/${encodeSlug(slug)}/visibility`,
+      `${keyPath(key)}/visibility`,
       visibility,
       "Не удалось сохранить видимость турнира",
       parseVisibility,

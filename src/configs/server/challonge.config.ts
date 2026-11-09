@@ -1,7 +1,3 @@
-import { CHALLONGE_HOSTS } from "@/configs/tournament.config";
-
-/** Hosts allowed for the module proxy. */
-export const ALLOWED_HOSTS = CHALLONGE_HOSTS;
 /** Browser user agent sent to Challonge. */
 export const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";

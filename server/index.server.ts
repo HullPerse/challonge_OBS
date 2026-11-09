@@ -1,4 +1,5 @@
 import {
+  BROWSER_HOST,
   HOST,
   IDLE_TIMEOUT_SECONDS,
   MAX_JSON_BYTES,
@@ -23,11 +24,13 @@ const server = Bun.serve({
   fetch: app.fetch,
 });
 
-const appUrl = `http://${HOST}:${server.port}`;
-console.log(`App: ${appUrl}`);
+const serverUrl = `http://${HOST}:${server.port}`;
+const browserUrl = Bun.env.BROWSER_URL?.trim() ?? `http://${BROWSER_HOST}:${server.port}`;
+console.log(`server: ${serverUrl}`);
+console.log(`browser: ${browserUrl}`);
 
 if (PathUtils.isStandalone() && OPEN_BROWSER) {
-  await BrowserUtils.open(appUrl);
+  await BrowserUtils.open(browserUrl);
 }
 
 let stopping = false;
@@ -39,7 +42,7 @@ const shutdown = async (): Promise<void> => {
   console.log(`Shutting down`);
 
   const [, error] = await attempt(server.stop(true));
-  if (error) console.error("App: stop failed", error);
+  if (error) console.error("server: stop failed", error);
 
   application.close();
   database.close();

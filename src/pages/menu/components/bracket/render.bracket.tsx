@@ -1,78 +1,44 @@
 import { useCallback } from "react";
-import { AlertTriangle, RefreshCw, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 
-import Button from "@/components/ui/button.component";
 import Loader from "@/components/ui/loader.component";
-import { DEFAULT_VIEW } from "@/configs/overlay.config";
-import { useActiveTournamentContext } from "@/components/shared/activeTournament.provider";
+import {
+  activeTournamentSelectors,
+  useActiveTournamentActions,
+  useActiveTournamentSelector,
+} from "@/hooks/useActiveTournament.hook";
 import { useOverlayFocusSync } from "@/hooks/useOverlayFocusSync.hook";
 import { useAppBracketView } from "@/hooks/useOverlayPreview.hook";
-import {
-  useSetOverlayPointer,
-  useSetOverlayView,
-} from "@/hooks/useOverlay.hook";
+import { useSetOverlayPointer, useSetOverlayView } from "@/hooks/useOverlay.hook";
 import { errorMessage } from "@/lib/error.utils";
 import type { OverlayPointer, OverlayView } from "@/types/overlay";
-import ControlBracket from "./control.bracket";
-import ResultBracket from "./result.bracket";
+import ErrorState from "./error.bracket";
 import StatePanel from "./state.bracket";
-
-function ErrorState({
-  title,
-  message,
-  onRetry,
-}: {
-  title: string;
-  message: string;
-  onRetry: () => void;
-}) {
-  return (
-    <StatePanel>
-      <AlertTriangle className="size-7 text-accent" />
-      <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-      <p className="max-w-md text-xs leading-relaxed text-text-muted">
-        {message}
-      </p>
-      <Button size="sm" variant="secondary" onClick={onRetry}>
-        <RefreshCw className="size-3.5" />
-        Повторить
-      </Button>
-    </StatePanel>
-  );
-}
+import BracketView from "./view.bracket";
 
 const RenderBracket = () => {
-  const {
-    snapshot,
-    slug,
-    overlayState,
-    isLoading,
-    notFound,
-    error,
-    selectionError,
-    retry,
-    retrySelection,
-  } = useActiveTournamentContext();
+  const snapshot = useActiveTournamentSelector(activeTournamentSelectors.snapshot);
+  const key = useActiveTournamentSelector(activeTournamentSelectors.key);
+  const overlayState = useActiveTournamentSelector(activeTournamentSelectors.overlayState);
+  const isLoading = useActiveTournamentSelector(activeTournamentSelectors.isLoading);
+  const notFound = useActiveTournamentSelector(activeTournamentSelectors.notFound);
+  const error = useActiveTournamentSelector(activeTournamentSelectors.error);
+  const selectionError = useActiveTournamentSelector(activeTournamentSelectors.selectionError);
+  const { retry, retrySelection } = useActiveTournamentActions();
   const { mutate: setOverlayView } = useSetOverlayView();
   const { mutate: setOverlayPointer } = useSetOverlayPointer();
   const pointerEnabled = overlayState?.modules.pointer ?? false;
   useOverlayFocusSync(overlayState);
-  const { cardView, showRoundTitles } = useAppBracketView(
-    overlayState,
-    snapshot,
-  );
+  const { cardView, showRoundTitles, showBackground } = useAppBracketView(overlayState, snapshot);
 
   const errorText = errorMessage(error, "Не удалось загрузить данные турнира");
-  const errorSelection = errorMessage(
-    selectionError,
-    "Не удалось переключить турнир",
-  );
+  const errorSelection = errorMessage(selectionError, "Не удалось переключить турнир");
 
   const handleSceneView = useCallback(
     (view: OverlayView) => {
-      if (slug) setOverlayView({ activeSlug: slug, view });
+      if (key) setOverlayView({ activeKey: key, view });
     },
-    [setOverlayView, slug],
+    [key, setOverlayView],
   );
 
   const handleScenePointer = useCallback(
@@ -99,13 +65,7 @@ const RenderBracket = () => {
   );
 
   if (errorText) {
-    return (
-      <ErrorState
-        title="Не удалось загрузить данные"
-        message={errorText}
-        onRetry={retry}
-      />
-    );
+    return <ErrorState title="Не удалось загрузить данные" message={errorText} onRetry={retry} />;
   }
 
   if (errorSelection && !snapshot) {
@@ -127,7 +87,7 @@ const RenderBracket = () => {
     );
   }
 
-  if (snapshot?.matches.length === 0) {
+  if (snapshot?.matches.length === 0 && !snapshot.groups?.length) {
     return (
       <StatePanel>
         <Trophy className="size-5 text-text-muted" />
@@ -138,20 +98,15 @@ const RenderBracket = () => {
 
   if (snapshot) {
     return (
-      <div className="flex h-full w-full flex-col">
-        <ResultBracket snapshot={snapshot} />
-        <div className="min-h-0 flex-1">
-          <ControlBracket
-            key={snapshot.slug}
-            snapshot={snapshot}
-            sceneView={overlayState?.view ?? DEFAULT_VIEW}
-            cardView={cardView}
-            showRoundTitles={showRoundTitles}
-            onViewChange={handleViewChange}
-            onPointerChange={handlePointerChange}
-          />
-        </div>
-      </div>
+      <BracketView
+        snapshot={snapshot}
+        overlayState={overlayState}
+        cardView={cardView}
+        showRoundTitles={showRoundTitles}
+        showBackground={showBackground}
+        onViewChange={handleViewChange}
+        onPointerChange={handlePointerChange}
+      />
     );
   }
 
@@ -159,9 +114,7 @@ const RenderBracket = () => {
     return (
       <StatePanel>
         <Trophy className="text-text-muted" />
-        <h2 className="text-sm font-medium text-text-primary">
-          Турнир не найден
-        </h2>
+        <h2 className="text-sm font-medium text-text-primary">Турнир не найден</h2>
       </StatePanel>
     );
   }

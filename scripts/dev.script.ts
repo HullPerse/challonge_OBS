@@ -1,9 +1,11 @@
 import { resolve } from "node:path";
+import { DEV_UI_URL } from "../src/configs/dev.config";
 
 const projectRoot = resolve(import.meta.dir, "..");
 
 const children = [
   Bun.spawn(["bun", "run", "dev:server"], {
+    env: { ...Bun.env, BROWSER_URL: DEV_UI_URL },
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",

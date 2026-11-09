@@ -1,4 +1,5 @@
 import { compareMatches } from "@/lib/sidebar.utils";
+import { snapshotMatches } from "@/lib/tournament/group.utils";
 import type { PlayerHistoryView } from "@/types/bracket";
 import type { Player, TournamentSnapshot } from "@/types/tournament";
 import PlayerHistoryRow from "./row.player";
@@ -12,8 +13,13 @@ function PlayerHistory({
   player: Player;
   view: PlayerHistoryView;
 }) {
-  const matches = snapshot.matches
-    .filter((match) => match.player1?.id === player.id || match.player2?.id === player.id)
+  const matches = snapshotMatches(snapshot)
+    .filter(
+      (match) =>
+        match.player1?.id === player.id ||
+        match.player2?.id === player.id ||
+        match.entrants?.some((entrant) => entrant.id === player.id),
+    )
     .sort(compareMatches);
 
   if (matches.length === 0) {

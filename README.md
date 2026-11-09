@@ -34,15 +34,19 @@ On the first launch the exe creates `settings.json` next to itself:
 ```json
 {
   "port": 8787,
+  "vite_port": 22848,
   "open_browser": true,
   "db_path": "data/challonge.sqlite"
 }
 ```
 
-`port` sets the listen port. `open_browser` controls the automatic browser launch. `db_path` sets
-the SQLite file relative to the folder containing the exe; absolute paths also work.
-`DB_PATH` overrides it. The file is created once and is not overwritten by rebuilds. `PORT` and
-`OPEN_BROWSER=0` still override it for one run.
+`port` sets the Bun listen port and the web-app port in the standalone exe. `vite_port` sets the
+Vite dev server port used by `bun run dev`; change it if `22848` is already taken. Vite is not
+started by the standalone exe, so `port` remains the only web port there. `open_browser` controls
+the automatic browser launch. `db_path` sets the SQLite file relative to the folder containing the
+exe; absolute paths also work. `DB_PATH` overrides it. The file is created once and is not
+overwritten by rebuilds. `PORT` and `OPEN_BROWSER=0` still override it for one run; `VITE_PORT`
+overrides `vite_port` for one dev run.
 
 For OBS, point a Browser Source at `http://127.0.0.1:8787/overlay`. The page is transparent and
 receives the active bracket, view, visibility, pointer, modules, and focus over SSE. When a match or
@@ -50,7 +54,7 @@ player-history modal is open in the control panel, the overlay shows the same re
 The right-side "Оверлей" panel groups all 13 output modules; its switches are saved optimistically
 through `PUT /api/overlay/modules`, and the cursor-size slider persists 32-64 px through
 `PUT /api/overlay/pointer-size`. A local "Превью в приложении" switch, off by default and not
-persisted, makes the control-panel cards and dialogs use the overlay card and dialog flags. The
+persisted, makes the control-panel cards, dialogs, and background use the overlay flags. The
 header button collapses the panel. Match and player dialogs
 share the same `DialogPanel` in the control panel and the overlay, so their size does not jump
 between surfaces; the overlay only omits the "Скрыть матч" action while reserving its space.
@@ -67,7 +71,8 @@ bun run dev
 ```
 
 Open the Vite URL (`http://127.0.0.1:22848`). Vite proxies `/api` to
-`http://127.0.0.1:8787`. The runner starts both processes and stops both on Ctrl+C. To run them
+`http://127.0.0.1:8787`. The `browser:` startup line points at this Vite URL in development and at
+the built app in standalone mode. The runner starts both processes and stops both on Ctrl+C. To run them
 separately, use `bun run dev:server` and `bun run dev:ui`.
 
 The server is Bun + Elysia. `GET /health` returns `{ ok, db }` after a real SQLite query.

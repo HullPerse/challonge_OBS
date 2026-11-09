@@ -43,29 +43,31 @@ describe("database migration", () => {
           .query<{ user_version: number }, []>("PRAGMA user_version")
           .get();
 
-        expect(version?.user_version).toBe(3);
+        expect(version?.user_version).toBe(4);
 
         const tournament = database.sqlite
-          .query<{ slug: string }, []>("SELECT slug FROM tournaments WHERE slug = 'legacy'")
-          .get();
-
-        expect(tournament?.slug).toBe("legacy");
-
-        database.sqlite.run(`
-          INSERT INTO overlay_state
-            (id, active_slug, view, pointer, modules, revision, updated_at)
-          VALUES
-            (1, 'legacy', '{}', '{}', '{}', 1, 1);
-          DELETE FROM tournaments WHERE slug = 'legacy';
-        `);
-
-        const overlay = database.sqlite
-          .query<{ active_slug: string | null; pointer_size: number }, []>(
-            "SELECT active_slug, pointer_size FROM overlay_state WHERE id = 1",
+          .query<{ key: string; slug: string }, []>(
+            "SELECT key, slug FROM tournaments WHERE key = 'challonge.com/legacy'",
           )
           .get();
 
-        expect(overlay?.active_slug).toBeNull();
+        expect(tournament).toEqual({ key: "challonge.com/legacy", slug: "legacy" });
+
+        database.sqlite.run(`
+          INSERT INTO overlay_state
+            (id, active_key, view, pointer, modules, revision, updated_at)
+          VALUES
+            (1, 'challonge.com/legacy', '{}', '{}', '{}', 1, 1);
+          DELETE FROM tournaments WHERE key = 'challonge.com/legacy';
+        `);
+
+        const overlay = database.sqlite
+          .query<{ active_key: string | null; pointer_size: number }, []>(
+            "SELECT active_key, pointer_size FROM overlay_state WHERE id = 1",
+          )
+          .get();
+
+        expect(overlay?.active_key).toBeNull();
         expect(overlay?.pointer_size).toBe(48);
       } finally {
         database.close();

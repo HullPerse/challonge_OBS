@@ -1,3 +1,5 @@
+export type SelectStatusVariant = "loading" | "error" | "empty";
+
 export type ImageState = {
   src: string;
   finalSrc: string;

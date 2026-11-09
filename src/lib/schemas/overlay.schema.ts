@@ -3,26 +3,14 @@ import {
   OVERLAY_POINTER_RANGE,
   OVERLAY_VIEW_LIMITS,
 } from "@/configs/overlay.config";
-import {
-  snapshotSchema,
-  visibilityShape,
-} from "@/lib/schemas/tournament-snapshot.schema";
+import { snapshotSchema, visibilityShape } from "@/lib/schemas/tournament-snapshot.schema";
 import type { OverlayModuleKey, OverlayModules } from "@/types/overlay";
 import { z } from "zod";
 
 export const overlayViewSchema = z.object({
-  zoom: z
-    .number()
-    .min(OVERLAY_VIEW_LIMITS.zoom.min)
-    .max(OVERLAY_VIEW_LIMITS.zoom.max),
-  centerX: z
-    .number()
-    .min(OVERLAY_VIEW_LIMITS.centerX.min)
-    .max(OVERLAY_VIEW_LIMITS.centerX.max),
-  centerY: z
-    .number()
-    .min(OVERLAY_VIEW_LIMITS.centerY.min)
-    .max(OVERLAY_VIEW_LIMITS.centerY.max),
+  zoom: z.number().min(OVERLAY_VIEW_LIMITS.zoom.min).max(OVERLAY_VIEW_LIMITS.zoom.max),
+  centerX: z.number().min(OVERLAY_VIEW_LIMITS.centerX.min).max(OVERLAY_VIEW_LIMITS.centerX.max),
+  centerY: z.number().min(OVERLAY_VIEW_LIMITS.centerY.min).max(OVERLAY_VIEW_LIMITS.centerY.max),
 });
 
 export const overlayPointerSchema = z.object({
@@ -58,7 +46,7 @@ export const overlayModalSchema = z.discriminatedUnion("kind", [
 ]);
 
 export const overlayStateSchema = z.object({
-  activeSlug: z.string().nullable(),
+  activeKey: z.string().nullable(),
   view: overlayViewSchema,
   pointer: overlayPointerSchema,
   pointerSize: z

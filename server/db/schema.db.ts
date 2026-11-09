@@ -2,7 +2,9 @@ import { OVERLAY_CURSOR_SIZE } from "@/configs/overlay.config";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const tournaments = sqliteTable("tournaments", {
-  slug: text("slug").primaryKey(),
+  key: text("key").primaryKey(),
+  slug: text("slug").notNull(),
+  host: text("host").notNull(),
   name: text("name").notNull(),
   tournamentType: text("tournament_type").notNull(),
   sourceUrl: text("source_url").notNull(),
@@ -13,16 +15,16 @@ export const tournaments = sqliteTable("tournaments", {
 });
 
 export const tournamentVisibility = sqliteTable("tournament_visibility", {
-  slug: text("slug")
+  key: text("key")
     .primaryKey()
-    .references(() => tournaments.slug, { onDelete: "cascade" }),
+    .references(() => tournaments.key, { onDelete: "cascade" }),
   hiddenMatches: text("hidden_matches").notNull().default("[]"),
   hiddenRounds: text("hidden_rounds").notNull().default("[]"),
 });
 
 export const overlayState = sqliteTable("overlay_state", {
   id: integer("id").primaryKey(),
-  activeSlug: text("active_slug").references(() => tournaments.slug, {
+  activeKey: text("active_key").references(() => tournaments.key, {
     onDelete: "set null",
   }),
   view: text("view").notNull(),

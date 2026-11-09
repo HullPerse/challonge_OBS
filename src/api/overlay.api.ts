@@ -1,6 +1,10 @@
 import { API_BASE_PATH } from "@/configs/api.config";
 import HttpApi from "@/lib/http.utils";
-import { overlayEventSchema, overlayModulesSchema, overlayStateSchema } from "@/lib/schemas/overlay.schema";
+import {
+  overlayEventSchema,
+  overlayModulesSchema,
+  overlayStateSchema,
+} from "@/lib/schemas/overlay.schema";
 import type { OverlayStreamHandlers } from "@/types/api";
 import type {
   OverlayFocusPatch,
@@ -24,11 +28,19 @@ export default class OverlayApi {
   }
 
   getState(): Promise<OverlayState> {
-    return this.http.get("/overlay/state", "Не удалось загрузить состояние оверлея", parseOverlayState);
+    return this.http.get(
+      "/overlay/state",
+      "Не удалось загрузить состояние оверлея",
+      parseOverlayState,
+    );
   }
 
   getModules(): Promise<OverlayModules> {
-    return this.http.get("/overlay/modules", "Не удалось загрузить модули оверлея", parseOverlayModules);
+    return this.http.get(
+      "/overlay/modules",
+      "Не удалось загрузить модули оверлея",
+      parseOverlayModules,
+    );
   }
 
   setView(input: OverlaySetViewInput): Promise<OverlayState> {
@@ -83,7 +95,7 @@ export default class OverlayApi {
     source.onopen = () => handlers.onOpen?.();
     source.onerror = (event) => handlers.onError?.(event);
     source.onmessage = (message: MessageEvent<string>) => {
-      const [data, error] = attemptSync(() => JSON.parse(message.data) as unknown);
+      const [data, error] = attemptSync<unknown>(() => JSON.parse(message.data));
 
       if (error) return handlers.onError?.(error);
 

@@ -1,88 +1,64 @@
-import { OVERLAY_CURSOR_SIZE } from "@/configs/overlay.config";
 import { SCHEMA_VERSION } from "@/configs/server/database.config";
+import { ensureSchema } from "./ddl.db";
+import { migrateToKeySchema } from "./migrations/v4-key.migration";
+import type { DatabaseMigration } from "@/types/server/database";
+import { attemptSync } from "@hullperse/hp_utils/attempt";
 import type { Database } from "bun:sqlite";
 
-const createTables = (sqlite: Database) => {
-  sqlite.run(`
-    CREATE TABLE IF NOT EXISTS tournaments (
-      slug TEXT PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL,
-      tournament_type TEXT NOT NULL,
-      source_url TEXT NOT NULL,
-      fetched_at INTEGER NOT NULL,
-      match_count INTEGER NOT NULL,
-      snapshot TEXT NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS tournament_visibility (
-      slug TEXT PRIMARY KEY NOT NULL REFERENCES tournaments(slug) ON DELETE CASCADE,
-      hidden_matches TEXT NOT NULL DEFAULT '[]',
-      hidden_rounds TEXT NOT NULL DEFAULT '[]'
-    );
-    CREATE TABLE IF NOT EXISTS overlay_state (
-      id INTEGER PRIMARY KEY NOT NULL,
-      active_slug TEXT REFERENCES tournaments(slug) ON DELETE SET NULL,
-      view TEXT NOT NULL,
-      pointer TEXT NOT NULL,
-      pointer_size INTEGER NOT NULL DEFAULT ${OVERLAY_CURSOR_SIZE.default},
-      modules TEXT NOT NULL,
-      revision INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
+const MIGRATIONS = [{ version: 4, run: migrateToKeySchema }] satisfies readonly DatabaseMigration[];
+
+const readSchemaVersion = (sqlite: Database): number => {
+  const row = sqlite.query<{ user_version: number }, []>("PRAGMA user_version").get();
+
+  return row?.user_version ?? 0;
 };
 
-const addOverlayPointerSize = (sqlite: Database) => {
-  const columns = sqlite.query<{ name: string }, []>("PRAGMA table_info(overlay_state)").all();
+const writeSchemaVersion = (sqlite: Database): void => {
+  sqlite.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+};
 
-  if (columns.some((column) => column.name === "pointer_size")) return;
+const assertSupportedVersion = (currentVersion: number): void => {
+  if (currentVersion <= SCHEMA_VERSION) return;
 
-  sqlite.run(
-    `ALTER TABLE overlay_state ADD COLUMN pointer_size INTEGER NOT NULL DEFAULT ${OVERLAY_CURSOR_SIZE.default}`,
+  throw new Error(
+    `Database schema version ${currentVersion} is newer than supported version ${SCHEMA_VERSION}`,
   );
 };
 
-const migrateLegacyVisibility = (sqlite: Database) => {
-  const foreignKeys = sqlite.query("PRAGMA foreign_key_list(tournament_visibility)").all();
-  if (foreignKeys.length > 0) return;
+const runMigrationTransaction = (sqlite: Database, migrate: () => void): Error | null => {
+  sqlite.run("PRAGMA foreign_keys = OFF");
 
-  sqlite.run(`
-    CREATE TABLE tournament_visibility_new (
-      slug TEXT PRIMARY KEY NOT NULL REFERENCES tournaments(slug) ON DELETE CASCADE,
-      hidden_matches TEXT NOT NULL DEFAULT '[]',
-      hidden_rounds TEXT NOT NULL DEFAULT '[]'
-    );
-    INSERT INTO tournament_visibility_new (slug, hidden_matches, hidden_rounds)
-      SELECT slug, hidden_matches, hidden_rounds FROM tournament_visibility
-      WHERE slug IN (SELECT slug FROM tournaments);
-    DROP TABLE tournament_visibility;
-    ALTER TABLE tournament_visibility_new RENAME TO tournament_visibility;
-  `);
+  const [, migrationError] = attemptSync(() => {
+    sqlite.transaction(migrate)();
+  });
+
+  sqlite.run("PRAGMA foreign_keys = ON");
+  return migrationError;
 };
 
-export const migrateDatabase = (sqlite: Database) => {
-  const versionRow = sqlite.query<{ user_version: number }, []>("PRAGMA user_version").get();
-  const currentVersion = versionRow?.user_version ?? 0;
-
-  if (currentVersion > SCHEMA_VERSION) {
-    throw new Error(
-      `Database schema version ${currentVersion} is newer than supported version ${SCHEMA_VERSION}`,
-    );
+const runPendingMigrations = (sqlite: Database, currentVersion: number): void => {
+  for (const migration of MIGRATIONS) {
+    if (migration.version <= currentVersion) continue;
+    migration.run(sqlite);
   }
 
-  if (currentVersion < SCHEMA_VERSION) {
-    const insides = () => {
-      createTables(sqlite);
-      addOverlayPointerSize(sqlite);
-      migrateLegacyVisibility(sqlite);
-      sqlite.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-    };
+  ensureSchema(sqlite);
+  writeSchemaVersion(sqlite);
+};
 
-    sqlite.transaction(insides)();
+/** Creates the current schema or applies every pending migration. */
+export const migrateDatabase = (sqlite: Database): void => {
+  const currentVersion = readSchemaVersion(sqlite);
+  assertSupportedVersion(currentVersion);
+
+  if (currentVersion === SCHEMA_VERSION) {
+    ensureSchema(sqlite);
     return;
   }
 
-  createTables(sqlite);
-  addOverlayPointerSize(sqlite);
-  migrateLegacyVisibility(sqlite);
+  const migrationError = runMigrationTransaction(sqlite, () => {
+    runPendingMigrations(sqlite, currentVersion);
+  });
+
+  if (migrationError) throw migrationError;
 };

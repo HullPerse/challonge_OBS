@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import { useCell } from "@hullperse/hp_utils/react";
+import { cn } from "cn";
 
 import SceneBracket from "@/components/bracket/scene.bracket";
+import { MATCH_LABEL } from "@/configs/bracket.config";
+import VisibilityError from "@/components/shared/visibilityError.component";
 import { useBracketCamera } from "@/hooks/useBracketCamera.hook";
 import { useVisibility } from "@/hooks/useVisibility.hook";
 import { matchStateLabel } from "@/lib/bracket/match.utils";
@@ -18,6 +21,7 @@ function ControlBracket({
   sceneView,
   cardView,
   showRoundTitles,
+  showBackground,
   onViewChange,
   onPointerChange,
 }: {
@@ -25,11 +29,14 @@ function ControlBracket({
   sceneView: OverlayView;
   cardView: MatchCardView;
   showRoundTitles: boolean;
+  showBackground: boolean;
   onViewChange: (view: OverlayView) => void;
   onPointerChange: (pointer: OverlayPointer) => void;
 }) {
   const activePlayerId = useCell(bracketStore.highlightedPlayerId);
-  const { hiddenMatches, hiddenRounds, toggleMatch, toggleRound } = useVisibility(snapshot.slug);
+  const { hiddenMatches, hiddenRounds, toggleMatch, toggleRound, saveError } = useVisibility(
+    snapshot.key,
+  );
   const {
     canvasRef,
     dragging,
@@ -50,7 +57,7 @@ function ControlBracket({
 
   useEffect(() => {
     bracketStore.highlightedPlayerId.set(null);
-  }, [snapshot.slug]);
+  }, [snapshot.key]);
 
   useEffect(() => {
     return () => {
@@ -65,7 +72,7 @@ function ControlBracket({
   const openMatch = (match: Match) => {
     modalStore.open({
       overlay: { kind: "match", matchId: match.id },
-      title: `Матч ${match.identifier ?? match.id}`,
+      title: `${MATCH_LABEL} ${match.identifier ?? match.id}`,
       description: `${roundTitle(snapshot, match.round)} | ${matchStateLabel(match.state)}`,
       className: "w-lg",
       body: <DetailsBracket snapshot={snapshot} match={match} />,
@@ -80,7 +87,10 @@ function ControlBracket({
       role="application"
       aria-label="Сетка турнира"
       tabIndex={-1}
-      className="bracket-dots relative h-full w-full select-none overflow-hidden outline-none"
+      className={cn(
+        "relative h-full w-full select-none overflow-hidden outline-none",
+        showBackground && "bracket-dots",
+      )}
       style={{ cursor: dragging ? "grabbing" : "grab", touchAction: "none" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -106,6 +116,11 @@ function ControlBracket({
         onHideMatch={toggleMatch}
         onRestoreMatch={toggleMatch}
         onHighlightPlayer={setHighlightedPlayer}
+      />
+
+      <VisibilityError
+        error={saveError}
+        className="pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-ui border border-accent/40 bg-surface/95 px-3 py-1.5 text-center text-[11px] shadow"
       />
     </div>
   );

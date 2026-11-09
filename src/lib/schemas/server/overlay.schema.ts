@@ -1,4 +1,4 @@
-import { MAX_SLUG_LENGTH, SLUG } from "@/configs/server/validation.config";
+import { MAX_KEY_LENGTH, TOURNAMENT_KEY } from "@/configs/server/validation.config";
 import {
   overlayModalSchema,
   overlayModulesSchema,
@@ -12,7 +12,7 @@ import { z } from "zod";
 export { overlayPointerSchema };
 
 export const overlaySetViewSchema = z.object({
-  activeSlug: z.string().max(MAX_SLUG_LENGTH).regex(SLUG).nullable(),
+  activeKey: z.string().max(MAX_KEY_LENGTH).regex(TOURNAMENT_KEY).nullable(),
   view: overlayViewSchema,
 });
 
@@ -25,7 +25,7 @@ export const overlayFocusPatchSchema = z
   })
   .strict();
 
-const overlayActiveSlugSchema = z.string().max(MAX_SLUG_LENGTH).regex(SLUG).nullable();
+const overlayActiveKeySchema = z.string().max(MAX_KEY_LENGTH).regex(TOURNAMENT_KEY).nullable();
 
 export const overlayPointerSizeSchema = z
   .object({
@@ -37,5 +37,5 @@ export const overlayPointerSizeSchema = z
 export const overlayPersistedStateSchema = overlayStateSchema
   .omit({ highlightedPlayerId: true, modal: true })
   .extend({
-    activeSlug: overlayActiveSlugSchema,
+    activeKey: overlayActiveKeySchema,
   });

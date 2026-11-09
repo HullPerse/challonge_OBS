@@ -45,7 +45,6 @@ const Image = ({
   const attemptRef = useRef<number>(0);
   const srcRef = useRef<string>(src);
   const timerRef = useRef<ScheduledTask | null>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     srcRef.current = src;
@@ -124,7 +123,6 @@ const Image = ({
 
           <img
             key={retryKey}
-            ref={imgRef}
             src={finalSrc}
             alt={alt}
             width={width}

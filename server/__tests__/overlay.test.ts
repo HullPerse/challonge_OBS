@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { overlayEventSchema } from "@/lib/schemas/overlay.schema";
 import type { OverlayEvent } from "@/types/overlay";
 import type { Match, TournamentSnapshot } from "@/types/tournament";
 import { Application } from "../app.server";
@@ -43,6 +44,7 @@ const match = (id: number, round: number): Match => ({
 
 const snapshot = (slug: string, name = `Tournament ${slug}`): TournamentSnapshot => ({
   version: 1,
+  key: `challonge.com/${slug}`,
   tournamentId: 1,
   sourceUrl: `https://challonge.com/${slug}`,
   slug,
@@ -71,7 +73,7 @@ const putJson = (path: string, body: unknown): Promise<Response> =>
   });
 
 const createTournament = async (slug: string, name?: string): Promise<void> => {
-  const response = await putJson(`/api/tournaments/${slug}`, snapshot(slug, name));
+  const response = await putJson(`/api/tournaments/challonge.com/${slug}`, snapshot(slug, name));
   expect(response.status).toBe(200);
 };
 
@@ -105,7 +107,7 @@ const createEventReader = (
         .map((line) => line.slice(5).trimStart())
         .join("\n");
 
-      if (data) return JSON.parse(data) as OverlayEvent;
+      if (data) return overlayEventSchema.parse(JSON.parse(data));
     }
   };
 };
@@ -125,14 +127,14 @@ describe("overlay sync", () => {
     const sync = await nextEvent();
     expect(sync.type).toBe("sync");
     if (sync.type !== "sync") throw new Error("Expected sync event");
-    expect(sync.state.activeSlug).toBeNull();
+    expect(sync.state.activeKey).toBeNull();
     expect(sync.state.pointer.visible).toBe(false);
     expect(sync.state.pointer.cursor).toBe("default");
     expect(sync.state.pointerSize).toBe(48);
     expect(sync.tournament).toBeNull();
 
     const stateResponse = await putJson("/api/overlay/state", {
-      activeSlug: "overlay-live",
+      activeKey: "challonge.com/overlay-live",
       view: { zoom: 1.2, centerX: 0.4, centerY: 0.6 },
     });
     expect(stateResponse.status).toBe(200);
@@ -140,13 +142,13 @@ describe("overlay sync", () => {
     const state = await nextEvent();
     expect(state.type).toBe("state");
     if (state.type !== "state") throw new Error("Expected state event");
-    expect(state.state.activeSlug).toBe("overlay-live");
+    expect(state.state.activeKey).toBe("challonge.com/overlay-live");
     expect(state.state.view).toEqual({ zoom: 1.2, centerX: 0.4, centerY: 0.6 });
     expect(state.tournament?.slug).toBe("overlay-live");
     expect(state.visibility).toEqual({ hiddenMatches: [], hiddenRounds: [] });
 
     await putJson("/api/overlay/state", {
-      activeSlug: "overlay-live",
+      activeKey: "challonge.com/overlay-live",
       view: { zoom: 1.4, centerX: 0.45, centerY: 0.55 },
     });
 
@@ -169,7 +171,7 @@ describe("overlay sync", () => {
     if (pointer.type !== "pointer") throw new Error("Expected pointer event");
     expect(pointer.pointer).toEqual({ x: 0.25, y: 0.75, visible: true, cursor: "link" });
 
-    await putJson("/api/tournaments/overlay-live/visibility", {
+    await putJson("/api/tournaments/challonge.com/overlay-live/visibility", {
       hiddenMatches: [1],
       hiddenRounds: [],
     });
@@ -189,12 +191,12 @@ describe("overlay sync", () => {
     if (tournament.type !== "tournament") throw new Error("Expected tournament event");
     expect(tournament.tournament.name).toBe("Overlay live updated");
 
-    await request("/api/tournaments/overlay-live", { method: "DELETE" });
+    await request("/api/tournaments/challonge.com/overlay-live", { method: "DELETE" });
 
     const removed = await nextEvent();
     expect(removed.type).toBe("state");
     if (removed.type !== "state") throw new Error("Expected state event");
-    expect(removed.state.activeSlug).toBeNull();
+    expect(removed.state.activeKey).toBeNull();
     expect(removed.tournament).toBeNull();
 
     await reader.cancel();
@@ -203,14 +205,14 @@ describe("overlay sync", () => {
   test("returns the current state and rejects bad display input", async () => {
     await createTournament("overlay-state");
     await putJson("/api/overlay/state", {
-      activeSlug: "overlay-state",
+      activeKey: "challonge.com/overlay-state",
       view: { zoom: 1, centerX: 0.5, centerY: 0.5 },
     });
 
     const current = await request("/api/overlay/state");
     expect(current.status).toBe(200);
     expect(await current.json()).toMatchObject({
-      activeSlug: "overlay-state",
+      activeKey: "challonge.com/overlay-state",
       pointer: { visible: false },
       modules: { camera: true, pointer: true, background: true, scores: true },
     });
@@ -236,13 +238,13 @@ describe("overlay sync", () => {
     expect(badModules.status).toBe(400);
 
     const missing = await putJson("/api/overlay/state", {
-      activeSlug: "missing-overlay",
+      activeKey: "challonge.com/missing-overlay",
       view: { zoom: 1, centerX: 0.5, centerY: 0.5 },
     });
     expect(missing.status).toBe(404);
 
     const badSlug = await putJson("/api/overlay/state", {
-      activeSlug: "../escape",
+      activeKey: "../escape",
       view: { zoom: 1, centerX: 0.5, centerY: 0.5 },
     });
     expect(badSlug.status).toBe(400);
@@ -301,7 +303,7 @@ describe("overlay sync", () => {
     const cursor = { x: 0.2, y: 0.8, visible: true, cursor: "link" } as const;
 
     await putJson("/api/overlay/state", {
-      activeSlug: "overlay-gates",
+      activeKey: "challonge.com/overlay-gates",
       view: initialView,
     });
     await putJson("/api/overlay/modules", {
@@ -318,7 +320,7 @@ describe("overlay sync", () => {
     const sync = await nextEvent();
     expect(sync.type).toBe("sync");
     if (sync.type !== "sync") throw new Error("Expected sync event");
-    expect(sync.state.activeSlug).toBe("overlay-gates");
+    expect(sync.state.activeKey).toBe("challonge.com/overlay-gates");
     expect(sync.state.view).toEqual(initialView);
     expect(sync.state.modules).toMatchObject({ camera: true, pointer: true, scores: true });
 
@@ -360,7 +362,7 @@ describe("overlay sync", () => {
     expect(cameraOff.view).toEqual(initialView);
 
     const viewResponse = await putJson("/api/overlay/state", {
-      activeSlug: "overlay-gates",
+      activeKey: "challonge.com/overlay-gates",
       view: gatedView,
     });
     expect(viewResponse.status).toBe(200);
@@ -376,7 +378,7 @@ describe("overlay sync", () => {
     expect(cameraOn.view).toEqual(gatedView);
 
     await putJson("/api/overlay/state", {
-      activeSlug: "overlay-gates",
+      activeKey: "challonge.com/overlay-gates",
       view: { zoom: 1.2, centerX: 0.5, centerY: 0.5 },
     });
     const view = await nextEvent();
@@ -394,7 +396,7 @@ describe("overlay sync", () => {
 
     const first = new OverlayService(tournaments, localDatabase);
     first.setView({
-      activeSlug: "persisted-overlay",
+      activeKey: "challonge.com/persisted-overlay",
       view: { zoom: 1.6, centerX: 0.3, centerY: 0.7 },
     });
     first.setModules({ scores: false, completedDim: false });
@@ -405,7 +407,7 @@ describe("overlay sync", () => {
     const restored = new OverlayService(new TournamentService(localDatabase), localDatabase);
     const actual = restored.getState();
 
-    expect(actual.activeSlug).toBe(expected.activeSlug);
+    expect(actual.activeKey).toBe(expected.activeKey);
     expect(actual.view).toEqual(expected.view);
     expect(actual.modules).toEqual(expected.modules);
     expect(actual.pointerSize).toBe(56);

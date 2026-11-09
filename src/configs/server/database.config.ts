@@ -1,5 +1,5 @@
 /** Current schema version. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 /** PRAGMA executed after database writes. */
 export const OPTIMIZE_PRAGMA = "PRAGMA optimize";
 /** How often a long-running connection refreshes the query planner. */

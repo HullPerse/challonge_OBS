@@ -1,4 +1,3 @@
-import Loader from "@/components/ui/loader.component";
 import {
   Select,
   SelectContent,
@@ -8,69 +7,52 @@ import {
   SelectValue,
 } from "@/components/ui/select.component";
 import { NO_TOURNAMENT_VALUE } from "@/configs/tournament.config";
-import { useActiveTournamentContext } from "@/components/shared/activeTournament.provider";
+import {
+  activeTournamentSelectors,
+  useActiveTournamentActions,
+  useActiveTournamentSelector,
+} from "@/hooks/useActiveTournament.hook";
+import { usePrefetchTournament } from "@/hooks/useTournament.hook";
 import { errorMessage } from "@/lib/error.utils";
-import type { TournamentSummary } from "@/types/tournament";
-import { useMemo } from "react";
+import SelectStatus from "./selectStatus.header";
 
 function SelectHeader() {
-  const {
-    savedTournaments,
-    selectTournament,
-    overlayState,
-    selecting,
-    slug,
-    error,
-    isLoading,
-    isRefreshing,
-    isEmpty,
-  } = useActiveTournamentContext();
+  const savedTournaments = useActiveTournamentSelector(activeTournamentSelectors.savedTournaments);
+  const overlayState = useActiveTournamentSelector(activeTournamentSelectors.overlayState);
+  const selecting = useActiveTournamentSelector(activeTournamentSelectors.selecting);
+  const key = useActiveTournamentSelector(activeTournamentSelectors.key);
+  const error = useActiveTournamentSelector(activeTournamentSelectors.error);
+  const isLoading = useActiveTournamentSelector(activeTournamentSelectors.isLoading);
+  const { selectTournament } = useActiveTournamentActions();
+  const prefetchTournament = usePrefetchTournament();
 
-  const selectItems = useMemo(
-    () => [
-      { label: "Без турнира", value: NO_TOURNAMENT_VALUE },
-      ...savedTournaments.map((item: TournamentSummary) => ({
-        label: item.name,
-        value: item.slug,
-      })),
-    ],
-    [savedTournaments],
-  );
-  const selectValue = slug ?? NO_TOURNAMENT_VALUE;
+  const selectItems = [
+    { label: "Без турнира", value: NO_TOURNAMENT_VALUE },
+    ...savedTournaments.map((item) => ({
+      label: item.name,
+      value: item.key,
+    })),
+  ];
+  const selectValue = key ?? NO_TOURNAMENT_VALUE;
 
-  const selectedTournament = (value: string | null) => {
-    if (!value) return;
+  const selectTournamentValue = (value: string | null) => {
+    if (value === null) return;
     selectTournament(value === NO_TOURNAMENT_VALUE ? null : value);
   };
 
   const errorText = errorMessage(error, "Не удалось загрузить данные турнира");
 
-  if (isLoading || isRefreshing)
-    return (
-      <div className="border border-border h-10 items-center flex flex-row px-2 truncate md:text-[16px] text-xs text-accent font-bol gap-2">
-        <Loader className="size-4" /> Загрузка турниров…
-      </div>
-    );
+  if (isLoading) return <SelectStatus variant="loading" />;
 
-  if (errorText)
-    return (
-      <span className="border border-border h-10 items-center flex flex-row px-2 truncate md:text-xl text-xs text-accent font-bold">
-        Нет связи с сервером
-      </span>
-    );
+  if (errorText) return <SelectStatus variant="error" />;
 
-  if (savedTournaments.length === 0 || isEmpty)
-    return (
-      <span className="border border-border h-10 items-center flex flex-row px-2 truncate md:text-xl text-xs text-accent font-bold">
-        Нет турниров
-      </span>
-    );
+  if (savedTournaments.length === 0) return <SelectStatus variant="empty" />;
 
   return (
     <Select
       items={selectItems}
       value={selectValue}
-      onValueChange={selectedTournament}
+      onValueChange={selectTournamentValue}
       disabled={!overlayState || selecting}
     >
       <SelectTrigger
@@ -84,8 +66,17 @@ function SelectHeader() {
           <SelectItem value={NO_TOURNAMENT_VALUE}>
             <span className="min-w-0 flex-1 truncate text-text-muted">Без турнира</span>
           </SelectItem>
-          {savedTournaments.map((item: TournamentSummary) => (
-            <SelectItem key={item.slug} value={item.slug}>
+          {savedTournaments.map((item) => (
+            <SelectItem
+              key={item.key}
+              value={item.key}
+              onPointerEnter={() => {
+                prefetchTournament(item.key);
+              }}
+              onFocus={() => {
+                prefetchTournament(item.key);
+              }}
+            >
               <span className="min-w-0 flex-1 truncate">{item.name}</span>
             </SelectItem>
           ))}

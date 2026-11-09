@@ -4,6 +4,7 @@ import { z } from "zod";
 export const settingsSchema = z
   .object({
     port: z.number().int().min(1).max(MAX_PORT),
+    vite_port: z.number().int().min(1).max(MAX_PORT),
     open_browser: z.boolean(),
     db_path: z.string().trim().min(1),
   })

@@ -4,6 +4,8 @@ import SettingsUtils from "@/lib/server/settings.utils";
 
 /** Server bind address and port. */
 export const HOST = "127.0.0.1";
+/** Local address used when opening the standalone app in a browser. */
+export const BROWSER_HOST = "127.0.0.1";
 const SETTINGS = SettingsUtils.load();
 export const PORT = EnvUtils.parsePort(Bun.env.PORT, SETTINGS.port);
 export const OPEN_BROWSER =

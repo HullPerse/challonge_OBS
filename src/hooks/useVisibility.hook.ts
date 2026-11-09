@@ -1,26 +1,27 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TournamentVisibility } from "@/types/tournament";
 import { api } from "@/api/index.api";
 import { EMPTY_VISIBILITY, VISIBILITY_WRITE_DELAY_MS } from "@/configs/store.config";
 import { toggleId } from "@/lib/store.utils";
 import type { PendingVisibility } from "@/types/store";
+import { useCoalescedMutation } from "./useCoalescedMutation.hook";
 
 export const visibilityKeys = {
   all: ["visibility"],
-  detail: (slug: string | null) => [...visibilityKeys.all, slug],
+  detail: (key: string | null) => [...visibilityKeys.all, key],
 };
 
 /** Loads visibility and hides matches and rounds through the query cache. */
-export const useVisibility = (slug: string | null) => {
+export const useVisibility = (key: string | null) => {
   const queryClient = useQueryClient();
   const serverRef = useRef<TournamentVisibility>(EMPTY_VISIBILITY);
-  const pendingRef = useRef<PendingVisibility | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestRef = useRef<TournamentVisibility | null>(null);
+  const pendingRef = useRef<boolean>(false);
 
   const query = useQuery({
-    queryKey: visibilityKeys.detail(slug),
-    queryFn: slug ? () => api.tournaments.getVisibility(slug) : skipToken,
+    queryKey: visibilityKeys.detail(key),
+    queryFn: key ? () => api.tournaments.getVisibility(key) : skipToken,
   });
 
   const mutation = useMutation<
@@ -29,86 +30,60 @@ export const useVisibility = (slug: string | null) => {
     PendingVisibility,
     TournamentVisibility
   >({
-    mutationKey: visibilityKeys.detail(slug),
-    scope: { id: visibilityKeys.detail(slug).join(":") },
-
-    mutationFn: ({ slug: target, visibility }: PendingVisibility) =>
+    mutationKey: visibilityKeys.detail(key),
+    scope: { id: visibilityKeys.detail(key).join(":") },
+    mutationFn: ({ key: target, visibility }: PendingVisibility) =>
       api.tournaments.saveVisibility(target, visibility),
-
-    onMutate: ({ slug: target, visibility, previous }) => {
+    onMutate: ({ key: target, visibility, previous }) => {
       queryClient.setQueryData(visibilityKeys.detail(target), visibility);
       return previous;
     },
 
-    onSuccess: (saved, { slug: target }) => {
+    onSuccess: (saved, { key: target, visibility }) => {
       serverRef.current = saved;
-      if (!pendingRef.current) {
-        queryClient.setQueryData(visibilityKeys.detail(target), saved);
-      }
+
+      if (latestRef.current !== visibility) return;
+
+      pendingRef.current = false;
+      latestRef.current = saved;
+      queryClient.setQueryData(visibilityKeys.detail(target), saved);
     },
 
-    onError: (_error, { slug: target, previous }) => {
-      if (!pendingRef.current) {
-        queryClient.setQueryData(visibilityKeys.detail(target), previous);
-      }
+    onError: (_error, { key: target, previous, visibility }) => {
+      if (latestRef.current !== visibility) return;
+
+      pendingRef.current = false;
+      latestRef.current = previous;
+      queryClient.setQueryData(visibilityKeys.detail(target), previous);
     },
   });
 
-  const mutateRef = useRef<typeof mutation.mutate>(mutation.mutate);
-
-  useEffect(() => {
-    mutateRef.current = mutation.mutate;
-  }, [mutation.mutate]);
-
-  const flush = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-
-    const pending = pendingRef.current;
-    if (!pending) return;
-
-    pendingRef.current = null;
-    mutateRef.current(pending);
-  }, []);
+  const coalesced = useCoalescedMutation(mutation, VISIBILITY_WRITE_DELAY_MS, {
+    flushOnUnmount: true,
+  });
 
   useEffect(() => {
     if (!query.data || pendingRef.current) return;
+
+    latestRef.current = null;
     serverRef.current = query.data;
   }, [query.data]);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-
-      const pending = pendingRef.current;
-      if (!pending) return;
-
-      pendingRef.current = null;
-      mutateRef.current(pending);
-    };
-  }, []);
-
   const update = (next: (previous: TournamentVisibility) => TournamentVisibility) => {
-    if (!slug || !query.isSuccess) return;
+    if (!key || !query.isSuccess) return;
 
-    const key = visibilityKeys.detail(slug);
-    const current = queryClient.getQueryData<TournamentVisibility>(key) ?? EMPTY_VISIBILITY;
+    const queryKey = visibilityKeys.detail(key);
+    const current = queryClient.getQueryData<TournamentVisibility>(queryKey) ?? EMPTY_VISIBILITY;
     const visibility = next(current);
 
-    queryClient.setQueryData(key, visibility);
-    pendingRef.current = {
-      slug,
+    queryClient.setQueryData(queryKey, visibility);
+    pendingRef.current = true;
+    latestRef.current = visibility;
+    coalesced.mutate({
+      key,
       visibility,
-      previous: pendingRef.current?.previous ?? serverRef.current,
-    };
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(flush, VISIBILITY_WRITE_DELAY_MS);
+      previous: serverRef.current,
+    });
   };
 
   const visibility = query.data ?? EMPTY_VISIBILITY;

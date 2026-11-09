@@ -11,7 +11,7 @@ export default class VisibilityUtils {
 
   /** Parses a stored JSON id list, ignoring invalid values. */
   static parseIds(raw: string): number[] {
-    const [data, error] = attemptSync(() => JSON.parse(raw) as unknown);
+    const [data, error] = attemptSync<unknown>(() => JSON.parse(raw));
     if (error || !Array.isArray(data)) return [];
 
     return VisibilityUtils.normalizeIds(

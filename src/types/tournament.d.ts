@@ -17,11 +17,25 @@ export type Player = {
 };
 
 /** Resolved active-tournament selection; each state carries only its own data. */
+export type SelectionInput = {
+  isSavedReady: boolean;
+  isOverlayReady: boolean;
+  isSelectionFailed: boolean;
+  activeKey: string | null;
+  savedList: readonly TournamentSummary[];
+};
+
 export type SelectionState =
   | { status: "loading" }
-  | { status: "selecting"; targetSlug: string }
-  | { status: "ready"; slug: string | null }
+  | { status: "selecting"; targetKey: string }
+  | { status: "ready"; key: string | null }
   | { status: "failed" };
+
+/** Free-for-all entrant: a player with the score and final place of one match. */
+export type MatchEntrant = Player & {
+  score: number | null;
+  rank: number | null;
+};
 
 export type Match = {
   id: number;
@@ -33,6 +47,10 @@ export type Match = {
   state: string;
   player1: Player | null;
   player2: Player | null;
+  /** Present for free-for-all matches, which have more than two players. */
+  entrants?: MatchEntrant[];
+  /** Group-stage name when this match belongs to a nested group. */
+  group?: string;
   placeholder1: string | null;
   placeholder2: string | null;
   score1: number | null;
@@ -55,8 +73,31 @@ export type Round = {
   order: number;
 };
 
+export type TournamentGroup = {
+  id: number;
+  name: string;
+  matches: Match[];
+};
+
+export type GroupStanding = {
+  player: Player;
+  played: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  score: number;
+  scoreDifference: number;
+};
+
+export type GroupMatchRound = {
+  round: number;
+  matches: Match[];
+};
+
 export type TournamentSnapshot = {
   version: 1;
+  /** Unique identity: `host/slug`. */
+  key: string;
   /** Challonge tournament id; absent in snapshots saved before this field existed. */
   tournamentId?: number;
   sourceUrl: string;
@@ -70,6 +111,8 @@ export type TournamentSnapshot = {
   hideIdentifiers: boolean;
   rounds: Round[];
   matches: Match[];
+  /** Nested group-stage brackets; absent for tournaments without groups. */
+  groups?: TournamentGroup[];
 };
 
 /** Snapshot shape accepted by the server; `tournamentId` is required on write. */
@@ -81,7 +124,9 @@ export type TournamentVisibility = {
 };
 
 export type TournamentSummary = {
+  key: string;
   slug: string;
+  host: string;
   name: string;
   tournamentType: string;
   fetchedAt: number;
@@ -123,3 +168,4 @@ export type ImportStageHandler = (stage: ImportStage) => void;
 export type RawPlayer = z.infer<typeof rawPlayerSchema>;
 export type RawMatch = z.infer<typeof rawMatchSchema>;
 export type RawStore = z.infer<typeof rawStoreSchema>;
+export type RawGroup = NonNullable<RawStore["groups"]>[number];

@@ -12,6 +12,7 @@ function TournamentRow({
   refreshing,
   onSelect,
   onRefresh,
+  onPrefetch,
   onAskDelete,
   onCancelDelete,
   onConfirmDelete,
@@ -21,11 +22,12 @@ function TournamentRow({
   confirming: boolean;
   deleting: boolean;
   refreshing: boolean;
-  onSelect: (slug: string) => void;
-  onRefresh: (slug: string) => void;
-  onAskDelete: (slug: string) => void;
+  onSelect: (key: string) => void;
+  onRefresh: (key: string) => void;
+  onPrefetch: (key: string) => void;
+  onAskDelete: (key: string) => void;
   onCancelDelete: () => void;
-  onConfirmDelete: (slug: string) => void;
+  onConfirmDelete: (key: string) => void;
 }) {
   return (
     <div
@@ -41,7 +43,13 @@ function TournamentRow({
         type="button"
         className="flex min-w-0 flex-row flex-1 text-left hover:cursor-pointer disabled:pointer-events-none disabled:opacity-45"
         onClick={() => {
-          onSelect(item.slug);
+          onSelect(item.key);
+        }}
+        onPointerEnter={() => {
+          onPrefetch(item.key);
+        }}
+        onFocus={() => {
+          onPrefetch(item.key);
         }}
         disabled={active}
       >
@@ -61,7 +69,7 @@ function TournamentRow({
           title="Обновить с Challonge"
           disabled={refreshing || deleting}
           onClick={() => {
-            onRefresh(item.slug);
+            onRefresh(item.key);
           }}
         >
           <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
@@ -73,7 +81,7 @@ function TournamentRow({
               variant="error"
               disabled={deleting}
               onClick={() => {
-                onConfirmDelete(item.slug);
+                onConfirmDelete(item.key);
               }}
             >
               Удалить
@@ -87,7 +95,7 @@ function TournamentRow({
             size="icon"
             variant="ghost"
             onClick={() => {
-              onAskDelete(item.slug);
+              onAskDelete(item.key);
             }}
           >
             <Trash2 className="size-3.5" />

@@ -9,14 +9,10 @@ import {
 import HttpUtils from "@/lib/server/http.utils";
 import PathUtils from "@/lib/server/path.utils";
 import StaticUtils from "@/lib/server/static.utils";
+import type { StaticEntry } from "@/types/server/static";
 import { attempt, attemptSync } from "@hullperse/hp_utils/attempt";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
-
-type StaticEntry = {
-  size: number;
-  mtimeMs: number;
-};
 
 /** Serves the built SPA with safe fallback routing. */
 export default class StaticService {

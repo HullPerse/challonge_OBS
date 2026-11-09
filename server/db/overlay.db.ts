@@ -1,10 +1,9 @@
 import { overlayPersistedStateSchema } from "@/lib/schemas/server/overlay.schema";
+import type { PersistedOverlayState } from "@/types/server/database";
 import { attemptSync } from "@hullperse/hp_utils/attempt";
 import { eq } from "drizzle-orm";
 import type { DatabaseClient } from "./client.db";
 import { overlayState } from "./schema.db";
-
-export type PersistedOverlayState = ReturnType<typeof overlayPersistedStateSchema.parse>;
 
 /** Reads and validates the single persisted overlay row. */
 export const readOverlayState = (database: DatabaseClient): PersistedOverlayState | null => {
@@ -12,29 +11,28 @@ export const readOverlayState = (database: DatabaseClient): PersistedOverlayStat
 
   if (!row) return null;
 
-  const [state, parseError] = attemptSync(() => ({
-    activeSlug: row.activeSlug,
-    view: JSON.parse(row.view) as unknown,
-    pointer: JSON.parse(row.pointer) as unknown,
+  const [view, viewError] = attemptSync<unknown>(() => JSON.parse(row.view));
+  const [pointer, pointerError] = attemptSync<unknown>(() => JSON.parse(row.pointer));
+  const [modules, modulesError] = attemptSync<unknown>(() => JSON.parse(row.modules));
+
+  if (viewError || pointerError || modulesError) return null;
+
+  const parsed = overlayPersistedStateSchema.safeParse({
+    activeKey: row.activeKey,
+    view,
+    pointer,
     pointerSize: row.pointerSize,
-    modules: JSON.parse(row.modules) as unknown,
+    modules,
     revision: row.revision,
     updatedAt: row.updatedAt,
-  }));
-
-  if (parseError) return null;
-
-  const parsed = overlayPersistedStateSchema.safeParse(state);
+  });
   return parsed.success ? parsed.data : null;
 };
 
-export const writeOverlayState = (
-  database: DatabaseClient,
-  state: PersistedOverlayState,
-): void => {
+export const writeOverlayState = (database: DatabaseClient, state: PersistedOverlayState): void => {
   const values = {
     id: 1,
-    activeSlug: state.activeSlug,
+    activeKey: state.activeKey,
     view: JSON.stringify(state.view),
     pointer: JSON.stringify(state.pointer),
     pointerSize: state.pointerSize,
@@ -49,7 +47,7 @@ export const writeOverlayState = (
     .onConflictDoUpdate({
       target: overlayState.id,
       set: {
-        activeSlug: values.activeSlug,
+        activeKey: values.activeKey,
         view: values.view,
         pointer: values.pointer,
         pointerSize: values.pointerSize,

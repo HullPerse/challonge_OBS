@@ -4,12 +4,13 @@ import {
   CARD_WIDTH,
   CONTROL_CARD_VIEW,
   CONTROL_DIALOG_VIEW,
+  MATCH_LABEL,
   MATCH_STATE_LABELS,
   PLAYER_PLACEHOLDER,
 } from "@/configs/bracket.config";
 import type { MatchCardView, MatchDialogView } from "@/types/bracket";
 import type { OverlayModules } from "@/types/overlay";
-import type { Match, Player, TournamentSnapshot } from "@/types/tournament";
+import type { Match, MatchEntrant, Player, TournamentSnapshot } from "@/types/tournament";
 
 export const playerName = (player: Player | null, placeholder: string | null): string => {
   return player?.name ?? placeholder ?? PLAYER_PLACEHOLDER;
@@ -20,17 +21,34 @@ export const matchStateLabel = (state: string): string => {
 };
 
 export const matchLabel = (match: Match, canHide: boolean): string => {
-  return `Матч ${match.identifier ?? match.id}. Открыть детали.${canHide ? " Правый клик - скрыть." : ""}`;
+  return `${MATCH_LABEL} ${match.identifier ?? match.id}. Открыть детали.${canHide ? " Правый клик - скрыть." : ""}`;
 };
 
-export const cardStyle = (left: number, top: number, dimmed: boolean): CSSProperties => {
+export const cardStyle = (
+  left: number,
+  top: number,
+  dimmed: boolean,
+  height?: number,
+): CSSProperties => {
   return {
     left,
     top,
     width: CARD_WIDTH,
+    ...(height === undefined ? {} : { height }),
     opacity: dimmed ? 0.72 : 1,
     transition: "opacity 160ms ease",
   };
+};
+
+/** Free-for-all entrants ordered by final place when the match is complete. */
+export const orderedEntrants = (match: Match): MatchEntrant[] => {
+  const entrants = match.entrants ?? [];
+  if (!entrants.some((entrant) => entrant.rank !== null)) return entrants;
+
+  return [...entrants].sort(
+    (left, right) =>
+      (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER),
+  );
 };
 
 /** Card features controlled by overlay modules, with snapshot hiding applied. */

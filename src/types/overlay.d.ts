@@ -27,7 +27,7 @@ export type OverlayPointerSizeInput = {
 };
 
 export type OverlaySetViewInput = {
-  activeSlug: string | null;
+  activeKey: string | null;
   view: OverlayView;
 };
 
@@ -41,7 +41,7 @@ export type OverlayFocusPatch = {
 };
 
 export type OverlayState = {
-  activeSlug: string | null;
+  activeKey: string | null;
   view: OverlayView;
   pointer: OverlayPointer;
   pointerSize: number;
@@ -139,4 +139,23 @@ export type EventHandlers = {
 
 export type OverlayScenePatch = Partial<Omit<OverlayScene, "state">> & {
   state?: Partial<OverlayState>;
+};
+
+export type OverlayMutationContext = {
+  previous: OverlayState | undefined;
+};
+
+export type OverlaySubscription = {
+  consumers: number;
+  close: () => void;
+};
+
+export type PointerHandler = (pointer: OverlayPointer) => void;
+
+export type PendingOverlayModules = Partial<
+  Record<OverlayModuleKey, { value: boolean; sequence: number }>
+>;
+
+export type OverlaySubscriptionHandlers = {
+  onEvent: (event: OverlayEvent) => void;
 };

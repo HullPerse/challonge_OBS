@@ -8,7 +8,7 @@ export const readOverlayBootstrap = (): OverlaySyncEvent | null => {
   const element = document.getElementById(OVERLAY_BOOTSTRAP_ID);
   if (!element?.textContent) return null;
 
-  const [data, error] = attemptSync(() => JSON.parse(element.textContent) as unknown);
+  const [data, error] = attemptSync<unknown>(() => JSON.parse(element.textContent));
   if (error) return null;
 
   const parsed = overlaySyncEventSchema.safeParse(data);

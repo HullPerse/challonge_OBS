@@ -9,6 +9,7 @@ import { useCell } from "@hullperse/hp_utils/react";
 
 import { INTERACTIVE_SELECTOR } from "@/configs/bracket.config";
 import { useElementSize } from "@/hooks/useElementSize.hook";
+import { useLatestRef } from "@/hooks/useLatestRef.hook";
 import { usePointerMirror } from "@/hooks/usePointerMirror.hook";
 import { getBracketLayout } from "@/lib/bracket/layout.utils";
 import { bracketPointToPointer, bracketPanToView } from "@/lib/bracket/scene.utils";
@@ -31,21 +32,9 @@ export const useBracketCamera = ({
   const [dragging, setDragging] = useState<boolean>(false);
   const dragRef = useRef<DragState | null>(null);
 
-  const viewCallbackRef = useRef<((view: OverlayView) => void) | undefined>(onViewChange);
-  const sceneViewRef = useRef<OverlayView | undefined>(sceneView);
-  const viewportRef = useRef<{ width: number; height: number }>(viewport);
-
-  useEffect(() => {
-    viewCallbackRef.current = onViewChange;
-  }, [onViewChange]);
-
-  useEffect(() => {
-    sceneViewRef.current = sceneView;
-  }, [sceneView]);
-
-  useEffect(() => {
-    viewportRef.current = viewport;
-  }, [viewport]);
+  const viewCallbackRef = useLatestRef<((view: OverlayView) => void) | undefined>(onViewChange);
+  const sceneViewRef = useLatestRef<OverlayView | undefined>(sceneView);
+  const viewportRef = useLatestRef<{ width: number; height: number }>(viewport);
 
   const viewFrameRef = useRef<number | null>(null);
   const pendingViewRef = useRef<OverlayView | null>(null);
@@ -77,10 +66,10 @@ export const useBracketCamera = ({
   useEffect(() => {
     if (!snapshot || !layout) return;
     if (!viewport.width || !viewport.height) return;
-    if (bracketStore.fittedSlug.get() === snapshot.slug) return;
+    if (bracketStore.fittedSlug.get() === snapshot.key) return;
 
     fit();
-    bracketStore.fittedSlug.set(snapshot.slug);
+    bracketStore.fittedSlug.set(snapshot.key);
   }, [fit, layout, snapshot, viewport.height, viewport.width]);
 
   useEffect(() => {
@@ -118,7 +107,7 @@ export const useBracketCamera = ({
       pendingViewRef.current = null;
       if (pending) viewCallbackRef.current?.(pending);
     });
-  }, [layout, pan, viewportReady, zoom]);
+  }, [layout, pan, viewCallbackRef, viewportReady, viewportRef, zoom]);
 
   useEffect(() => {
     const element = canvasRef.current;

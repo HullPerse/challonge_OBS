@@ -6,17 +6,17 @@ import Button from "@/components/ui/button.component";
 import { Input, inputVariants } from "@/components/ui/input.component";
 import Loader from "@/components/ui/loader.component";
 import { MAX_SOURCE_URL_LENGTH } from "@/configs/tournament.config";
-import { useActiveTournamentContext } from "@/components/shared/activeTournament.provider";
+import {
+  activeTournamentSelectors,
+  useActiveTournamentActions,
+  useActiveTournamentSelector,
+} from "@/hooks/useActiveTournament.hook";
 import { useParseTournament, useSaveTournament } from "@/hooks/useTournament.hook";
 import { errorMessage } from "@/lib/error.utils";
 import { ApiError } from "@/lib/http.utils";
 
 import { modalStore } from "@/stores/modal.store";
-import type {
-  ImportStage,
-  TournamentSnapshot,
-  TournamentSnapshotWrite,
-} from "@/types/tournament";
+import type { ImportStage, TournamentSnapshot, TournamentSnapshotWrite } from "@/types/tournament";
 import {
   getActionLabel,
   getStageLabel,
@@ -32,7 +32,8 @@ const isSubmitDisabled = (
 ): boolean => (preview ? pending : !canParse);
 
 function ImportHeader({ onBack }: { onBack: () => void }) {
-  const { selectTournament, savedTournaments } = useActiveTournamentContext();
+  const savedTournaments = useActiveTournamentSelector(activeTournamentSelectors.savedTournaments);
+  const { selectTournament } = useActiveTournamentActions();
   const save = useSaveTournament();
 
   const [stage, setStage] = useState<ImportStage | null>(null);
@@ -72,7 +73,7 @@ function ImportHeader({ onBack }: { onBack: () => void }) {
       { snapshot: preview, createOnly: !overwrite },
       {
         onSuccess: (snapshot) => {
-          selectTournament(snapshot.slug);
+          selectTournament(snapshot.key);
           modalStore.close();
         },
         onError: (error) => {

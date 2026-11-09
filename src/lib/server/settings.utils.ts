@@ -30,7 +30,7 @@ export default class SettingsUtils {
       return DEFAULT_SETTINGS;
     }
 
-    const [parsed, parseError] = attemptSync(() => JSON.parse(contents) as unknown);
+    const [parsed, parseError] = attemptSync<unknown>(() => JSON.parse(contents));
     if (parseError) {
       console.error(`Settings: invalid JSON in ${file}; using defaults`);
       return DEFAULT_SETTINGS;

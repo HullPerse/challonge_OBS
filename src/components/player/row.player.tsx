@@ -1,5 +1,5 @@
 import { PLAYER_PLACEHOLDER } from "@/configs/bracket.config";
-import { matchResult, matchSides, matchTitle } from "@/lib/sidebar.utils";
+import { matchResult, matchSides, matchTitle, matchWon } from "@/lib/sidebar.utils";
 import type { PlayerHistoryView } from "@/types/bracket";
 import type { Match, Player, TournamentSnapshot } from "@/types/tournament";
 import { cn } from "cn";
@@ -16,9 +16,9 @@ function PlayerHistoryRow({
   match: Match;
   view: PlayerHistoryView;
 }) {
-  const { opponent, placeholder, playerScore, opponentScore } = matchSides(match, player.id);
+  const { opponent, placeholder, playerScore, opponentScore, isFfa } = matchSides(match, player.id);
   const name = opponent?.name ?? placeholder ?? PLAYER_PLACEHOLDER;
-  const won = view.scores && match.winnerId === player.id;
+  const won = view.scores && matchWon(match, player.id);
 
   return (
     <div className="border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0">
@@ -35,7 +35,7 @@ function PlayerHistoryRow({
         <span className="min-w-0 flex-1 truncate text-xs text-text-primary">{name}</span>
         {view.scores && (
           <span className="text-xs tabular-nums text-text-primary">
-            {playerScore ?? "-"} : {opponentScore ?? "-"}
+            {isFfa ? (playerScore ?? "-") : `${playerScore ?? "-"} : ${opponentScore ?? "-"}`}
           </span>
         )}
       </div>

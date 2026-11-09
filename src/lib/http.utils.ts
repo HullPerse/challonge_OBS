@@ -36,11 +36,7 @@ export default class HttpApi {
     this.basePath = basePath;
   }
 
-  async get<T>(
-    path: string,
-    fallbackError: string,
-    parse: (value: unknown) => T,
-  ): Promise<T> {
+  async get<T>(path: string, fallbackError: string, parse: (value: unknown) => T): Promise<T> {
     const response = await this.request(path, {
       fallbackError,
       method: "GET",
@@ -49,11 +45,7 @@ export default class HttpApi {
     return this.parseJson(response, parse);
   }
 
-  async getRoot<T>(
-    path: string,
-    fallbackError: string,
-    parse: (value: unknown) => T,
-  ): Promise<T> {
+  async getRoot<T>(path: string, fallbackError: string, parse: (value: unknown) => T): Promise<T> {
     const response = await this.request(
       path,
       {

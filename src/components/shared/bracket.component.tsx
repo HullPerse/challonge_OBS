@@ -1,7 +1,5 @@
-import { Maximize2 } from "lucide-react";
-import { cn } from "cn";
-
-import Button from "@/components/ui/button.component";
+import FitBracketButton from "@/components/shared/fitBracket.button";
+import RoundHeaderToggle from "@/components/shared/roundHeaderToggle.component";
 import {
   CARD_GAP,
   CARD_WIDTH,
@@ -48,57 +46,29 @@ function BracketSectionHeader({
 
       {section.rounds.map((round, index) => {
         const hidden = hiddenRounds?.has(round.number) ?? false;
-        const className = cn(
-          "absolute flex h-full items-center justify-center truncate px-2 text-center text-xs text-text-secondary",
-          hidden && "line-through opacity-40",
-        );
         const style = {
           left: NUMBER_WIDTH + PADDING + index * COLUMN_WIDTH,
           width: CARD_WIDTH,
         };
 
-        if (!onToggleRound) {
-          return (
-            <span key={round.number} className={className} style={style}>
-              {round.title}
-            </span>
-          );
-        }
-
         return (
-          <button
+          <RoundHeaderToggle
             key={round.number}
-            type="button"
-            aria-pressed={!hidden}
-            aria-label={`${round.title}. ${hidden ? "Показать раунд" : "Скрыть раунд"}`}
-            onClick={() => {
-              onToggleRound(round.number);
-            }}
-            className={cn(
-              className,
-              "transition-colors hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent",
-            )}
+            title={round.title}
+            hidden={hidden}
+            className="absolute flex h-full items-center justify-center truncate px-2 text-center text-xs text-text-secondary"
             style={style}
-            title={hidden ? "Показать раунд" : "Скрыть раунд"}
-          >
-            {round.title}
-          </button>
+            onToggle={
+              onToggleRound &&
+              (() => {
+                onToggleRound(round.number);
+              })
+            }
+          />
         );
       })}
 
-      {onFit && (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onFit}
-          className="absolute top-0 right-0 h-full gap-1.5 rounded-none border-y-0 border-r-0 border-l border-border-strong bg-surface-panel px-2 text-[11px] text-text-primary hover:bg-surface-hover"
-          style={{ width: CARD_GAP }}
-          title="Вписать всю сетку"
-        >
-          <Maximize2 className="size-3.5" />
-          Вся сетка
-        </Button>
-      )}
+      {onFit && <FitBracketButton onFit={onFit} />}
     </div>
   );
 }

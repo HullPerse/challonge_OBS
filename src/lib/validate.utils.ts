@@ -1,4 +1,8 @@
-import { IMPORT_STAGE_LABELS, MAX_SOURCE_URL_LENGTH } from "@/configs/tournament.config";
+import {
+  IMPORT_ACTION_LABELS,
+  IMPORT_STAGE_LABELS,
+  MAX_SOURCE_URL_LENGTH,
+} from "@/configs/tournament.config";
 import { canonicalSlug, isChallongeUrl, isUrl } from "./tournament/slug.tournament";
 import { errorMessage } from "./error.utils";
 import type { ImportStage, TournamentSnapshot } from "@/types/tournament";
@@ -34,10 +38,10 @@ export const getVisibleUrlError = (
 };
 
 export const listHasTournament = (
-  items: readonly { slug: string }[],
+  items: readonly { key: string }[],
   preview: TournamentSnapshot | null,
 ): boolean => {
-  return preview !== null && items.some((item) => item.slug === preview.slug);
+  return preview !== null && items.some((item) => item.key === preview.key);
 };
 
 export const getActionLabel = (
@@ -45,8 +49,8 @@ export const getActionLabel = (
   overwrite: boolean,
   hasHtml: boolean,
 ): string => {
-  if (preview) return overwrite ? "Перезаписать" : "Сохранить";
-  return hasHtml ? "Проверить HTML" : "Проверить ссылку";
+  if (preview) return overwrite ? IMPORT_ACTION_LABELS.overwrite : IMPORT_ACTION_LABELS.save;
+  return hasHtml ? IMPORT_ACTION_LABELS.checkHtml : IMPORT_ACTION_LABELS.checkUrl;
 };
 
 export const getStageLabel = (saving: boolean, stage: ImportStage | null): string => {

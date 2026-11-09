@@ -1,68 +1,34 @@
-import Button from "@/components/ui/button.component";
-import ImageComponent from "@/components/ui/image.component";
-import { ORGANIZATOR_NAME } from "@/configs/tournament.config";
+import { useCell } from "@hullperse/hp_utils/react";
 import {
   ExternalLink,
   EyeOff,
   List,
-  RefreshCw,
   SidebarClose,
   SidebarOpen,
   SlidersHorizontal,
 } from "lucide-react";
-import SelectHeader from "./components/select.header";
-import { useActiveTournamentContext } from "@/components/shared/activeTournament.provider";
+
+import Button from "@/components/ui/button.component";
+import ImageComponent from "@/components/ui/image.component";
+import { ORGANIZATOR_NAME } from "@/configs/tournament.config";
+import {
+  activeTournamentSelectors,
+  useActiveTournamentSelector,
+} from "@/hooks/useActiveTournament.hook";
 import { useVisibility } from "@/hooks/useVisibility.hook";
-import { errorMessage } from "@/lib/error.utils";
-import { modalStore } from "@/stores/modal.store";
-import HiddenHeader from "./components/hidden.header";
-import ManagerHeader from "./components/manager/header.manager";
-import ImportHeader from "./components/manager/import.manager";
+import { menuStore } from "@/stores/menu.store";
+import RefreshButton from "./components/refresh.button";
+import SelectHeader from "./components/select.header";
+import { openHiddenModal, openManagerModal } from "./components/manager/modal.manager";
 
-const menuModal = {
-  manager: () => {
-    modalStore.open({
-      title: "Турниры",
-      description: "Управление турнирами",
-      className: "w-xl",
-      body: <ManagerHeader onAdd={menuModal.import} />,
-    });
-  },
-  import: () => {
-    modalStore.open({
-      title: "Добавить турнир",
-      description: "Ссылка Challonge или HTML страницы турнира",
-      className: "w-xl",
-      body: <ImportHeader onBack={menuModal.manager} />,
-    });
-  },
-};
-
-function HeaderMenu({
-  sidebar,
-  onSidebar,
-  overlayPanel,
-  onOverlayPanel,
-}: {
-  sidebar: boolean;
-  onSidebar: () => void;
-  overlayPanel: boolean;
-  onOverlayPanel: () => void;
-}) {
-  const { isRefreshing, refresh, snapshot, refreshError } = useActiveTournamentContext();
-  const { hiddenCount } = useVisibility(snapshot?.slug ?? null);
-
-  const refreshErrorMessage = errorMessage(refreshError, "Не удалось обновить турнир с Challonge");
-
-  const openHidden = () => {
-    if (!snapshot) return;
-
-    modalStore.open({
-      title: "Скрытые матчи и раунды",
-      className: "w-lg",
-      body: <HiddenHeader snapshot={snapshot} />,
-    });
-  };
+function HeaderMenu() {
+  const snapshot = useActiveTournamentSelector(activeTournamentSelectors.snapshot);
+  const sidebar = useCell(menuStore.sidebarOpen);
+  const overlayPanel = useCell(menuStore.overlayPanelOpen);
+  const { hiddenCount } = useVisibility(snapshot?.key ?? null);
+  const overlayPanelLabel = overlayPanel
+    ? "Скрыть настройки оверлея"
+    : "Показать настройки оверлея";
 
   return (
     <header className="grid grid-cols-[1fr_auto_1fr] items-center h-14 border-b border-border bg-surface p-2">
@@ -73,7 +39,7 @@ function HeaderMenu({
           size="icon"
           variant="secondary"
           onClick={() => {
-            onSidebar();
+            menuStore.sidebarOpen.update((open) => !open);
           }}
           disabled={!snapshot}
         >
@@ -94,16 +60,7 @@ function HeaderMenu({
       {/* MIDDLE */}
       <section className="flex flex-row gap-2 justify-self-center items-center">
         <SelectHeader />
-        <Button
-          size="icon"
-          variant="secondary"
-          className="size-9"
-          onClick={refresh}
-          disabled={!snapshot || isRefreshing}
-          title={refreshErrorMessage ?? "Обновить турнир с Challonge"}
-        >
-          <RefreshCw className={isRefreshing ? "size-4 animate-spin" : "size-4"} />
-        </Button>
+        <RefreshButton />
       </section>
 
       {/* RIGHT */}
@@ -112,7 +69,9 @@ function HeaderMenu({
           <Button
             size="sm"
             variant="ghost"
-            onClick={openHidden}
+            onClick={() => {
+              openHiddenModal(snapshot);
+            }}
             title="Скрытые матчи и раунды"
             aria-label={`Скрытые матчи и раунды: ${hiddenCount}`}
           >
@@ -121,7 +80,7 @@ function HeaderMenu({
           </Button>
         )}
 
-        <Button size="icon" variant="default" className="size-9" onClick={menuModal.manager}>
+        <Button size="icon" variant="default" className="size-9" onClick={openManagerModal}>
           <List className="size-4" />
         </Button>
 
@@ -140,11 +99,13 @@ function HeaderMenu({
           size="icon"
           variant="secondary"
           className="size-9"
-          onClick={onOverlayPanel}
+          onClick={() => {
+            menuStore.overlayPanelOpen.update((open) => !open);
+          }}
           aria-pressed={overlayPanel}
           aria-controls="overlay-settings-panel"
-          aria-label={overlayPanel ? "Скрыть настройки оверлея" : "Показать настройки оверлея"}
-          title={overlayPanel ? "Скрыть настройки оверлея" : "Показать настройки оверлея"}
+          aria-label={overlayPanelLabel}
+          title={overlayPanelLabel}
         >
           <SlidersHorizontal className="size-4" />
         </Button>

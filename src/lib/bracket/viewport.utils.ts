@@ -1,3 +1,5 @@
+import { clamp } from "@hullperse/hp_utils/math";
+
 import {
   FIT_MAX_ZOOM,
   FIT_PADDING,
@@ -9,10 +11,6 @@ import type { BracketCamera, BracketPoint, BracketSize } from "@/types/bracket";
 import type { OverlayPointer, OverlayView } from "@/types/overlay";
 
 const EPSILON = 0.0001;
-
-const clamp = (value: number, min: number, max: number): number => {
-  return Math.min(max, Math.max(min, value));
-};
 
 /** Fits the whole bracket into the viewport with a small padding. */
 export const fitCamera = (layout: BracketSize, viewport: BracketSize): BracketCamera | null => {

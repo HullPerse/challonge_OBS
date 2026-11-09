@@ -18,7 +18,7 @@ import {
   snapshotSchema,
   visibilityShape,
 } from "@/lib/schemas/tournament-snapshot.schema";
-import { canonicalSlug, isChallongeUrl } from "@/lib/tournament/slug.tournament";
+import { canonicalSlug, isChallongeUrl, keyFromSourceUrl } from "@/lib/tournament/slug.tournament";
 import { attemptSync } from "@hullperse/hp_utils/attempt";
 import { z } from "zod";
 
@@ -35,10 +35,15 @@ export const visibilitySchema = z.object({
   ),
 });
 
-const sourceMatchesSlug = (snapshot: { slug: string; sourceUrl: string }): boolean => {
-  const [slug, error] = attemptSync(() => canonicalSlug(snapshot.sourceUrl));
+const sourceMatchesKey = (snapshot: { key: string; slug: string; sourceUrl: string }): boolean => {
+  const [key, error] = attemptSync(() => keyFromSourceUrl(snapshot.sourceUrl));
 
-  return !error && isChallongeUrl(snapshot.sourceUrl) && slug === snapshot.slug;
+  return (
+    !error &&
+    isChallongeUrl(snapshot.sourceUrl) &&
+    key === snapshot.key &&
+    canonicalSlug(snapshot.sourceUrl) === snapshot.slug
+  );
 };
 
 /** Strict shape accepted when writing a snapshot to the server. */
@@ -55,11 +60,11 @@ export const snapshotWriteSchema = snapshotSchema
     matches: z.array(snapshotMatchSchema).max(MAX_MATCHES),
   })
   .superRefine((snapshot, ctx) => {
-    if (!sourceMatchesSlug(snapshot)) {
+    if (!sourceMatchesKey(snapshot)) {
       ctx.addIssue({
         code: "custom",
         path: ["sourceUrl"],
-        message: "sourceUrl must be a Challonge URL for the same slug",
+        message: "sourceUrl and key must describe the same Challonge tournament",
       });
     }
 

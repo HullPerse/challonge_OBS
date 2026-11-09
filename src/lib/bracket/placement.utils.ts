@@ -154,7 +154,7 @@ const rawLosersPlacements = (
     const x = columnX(columns.get(round.number) ?? 0);
 
     for (const [index, match] of (buckets.get(round.number) ?? []).entries()) {
-      placements.push({ match, x, y: offset + step * index });
+      placements.push({ match, x, y: (offset + step * index) * ROOT_PITCH });
     }
   }
 

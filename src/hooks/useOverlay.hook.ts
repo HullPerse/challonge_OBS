@@ -1,16 +1,25 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { OVERLAY_WRITE_DELAY_MS } from "@/configs/overlay.config";
+import { LIVE_REFRESH_INTERVAL_MS, OVERLAY_STATE_STALE_MS } from "@/configs/query.config";
 import { api } from "@/api/index.api";
 import type {
   OverlayEvent,
   OverlayFocusPatch,
   OverlayModulesPatch,
+  OverlayMutationContext,
   OverlayPointer,
   OverlayPointerSizeInput,
   OverlaySetViewInput,
   OverlayState,
 } from "@/types/overlay";
 import { applyStateEvent } from "@/lib/bracket/overlay.utils";
+import {
+  acquireOverlaySubscription,
+  getOverlayConnectionSnapshot,
+  subscribeOverlayConnection,
+} from "@/lib/overlay/subscription.utils";
+import { useCoalescedMutation } from "./useCoalescedMutation.hook";
 import { tournamentKeys } from "./useTournament.hook";
 import { visibilityKeys } from "./useVisibility.hook";
 
@@ -23,10 +32,6 @@ const writeOverlayState = (queryClient: QueryClient, state: OverlayState) => {
   queryClient.setQueryData<OverlayState>(overlayKeys.state, (previous) =>
     !previous || state.revision >= previous.revision ? state : previous,
   );
-};
-
-type OverlayMutationContext = {
-  previous: OverlayState | undefined;
 };
 
 const useOptimisticOverlayMutation = <TVariables>(
@@ -70,116 +75,55 @@ const writeEventState = (queryClient: QueryClient, event: OverlayEvent) => {
 
 const writeRelatedState = (queryClient: QueryClient, event: OverlayEvent) => {
   if (event.type === "sync" || event.type === "state") {
-    const slug = event.state.activeSlug;
-    if (!slug) return;
+    const key = event.state.activeKey;
+    if (!key) return;
 
     if (event.tournament !== undefined) {
-      queryClient.setQueryData(tournamentKeys.detail(slug), event.tournament);
+      queryClient.setQueryData(tournamentKeys.detail(key), event.tournament);
     }
     if (event.visibility !== undefined) {
-      queryClient.setQueryData(visibilityKeys.detail(slug), event.visibility);
+      queryClient.setQueryData(visibilityKeys.detail(key), event.visibility);
     }
     return;
   }
 
   if (event.type === "tournament") {
-    queryClient.setQueryData(tournamentKeys.detail(event.tournament.slug), event.tournament);
-    queryClient.setQueryData(visibilityKeys.detail(event.tournament.slug), event.visibility);
+    queryClient.setQueryData(tournamentKeys.detail(event.tournament.key), event.tournament);
+    queryClient.setQueryData(visibilityKeys.detail(event.tournament.key), event.visibility);
     return;
   }
 
   if (event.type === "visibility") {
     const state = queryClient.getQueryData<OverlayState>(overlayKeys.state);
-    if (!state?.activeSlug) return;
+    if (!state?.activeKey) return;
 
-    queryClient.setQueryData(visibilityKeys.detail(state.activeSlug), event.visibility);
+    queryClient.setQueryData(visibilityKeys.detail(state.activeKey), event.visibility);
   }
-};
-
-type OverlaySubscription = {
-  consumers: number;
-  close: () => void;
-};
-
-let overlaySubscription: OverlaySubscription | null = null;
-let overlayConnected = false;
-const connectionListeners = new Set<() => void>();
-
-const notifyConnection = () => {
-  for (const listener of connectionListeners) listener();
-};
-
-const subscribeConnection = (listener: () => void) => {
-  connectionListeners.add(listener);
-
-  return () => {
-    connectionListeners.delete(listener);
-  };
-};
-
-const getConnectionSnapshot = (): boolean => overlayConnected;
-
-/** Shares one SSE connection across every control-panel consumer. */
-const acquireOverlaySubscription = (queryClient: QueryClient) => {
-  if (!overlaySubscription) {
-    let current: OverlaySubscription;
-    current = {
-      consumers: 0,
-      close: api.overlay.subscribe({
-        onOpen: () => {
-          if (overlaySubscription !== current) return;
-          overlayConnected = true;
-          notifyConnection();
-        },
-        onError: () => {
-          if (overlaySubscription !== current) return;
-          overlayConnected = false;
-          notifyConnection();
-        },
-        onEvent: (event) => {
-          if (overlaySubscription !== current) return;
-          writeEventState(queryClient, event);
-          writeRelatedState(queryClient, event);
-        },
-      }),
-    };
-    overlaySubscription = current;
-  }
-
-  overlaySubscription.consumers += 1;
-
-  return () => {
-    const current = overlaySubscription;
-    if (!current) return;
-
-    current.consumers -= 1;
-    if (current.consumers > 0) return;
-
-    overlaySubscription = null;
-    overlayConnected = false;
-    notifyConnection();
-    current.close();
-  };
 };
 
 /** Loads overlay state and keeps it fresh through SSE while connected. */
 export const useOverlayState = () => {
   const queryClient = useQueryClient();
   const connected = useSyncExternalStore(
-    subscribeConnection,
-    getConnectionSnapshot,
-    getConnectionSnapshot,
+    subscribeOverlayConnection,
+    getOverlayConnectionSnapshot,
+    getOverlayConnectionSnapshot,
   );
 
   useEffect(() => {
-    return acquireOverlaySubscription(queryClient);
+    return acquireOverlaySubscription({
+      onEvent: (event) => {
+        writeEventState(queryClient, event);
+        writeRelatedState(queryClient, event);
+      },
+    });
   }, [queryClient]);
 
   return useQuery({
     queryKey: overlayKeys.state,
     queryFn: () => api.overlay.getState(),
-    staleTime: 10_000,
-    refetchInterval: connected ? false : 30_000,
+    staleTime: OVERLAY_STATE_STALE_MS,
+    refetchInterval: connected ? false : LIVE_REFRESH_INTERVAL_MS,
     refetchOnWindowFocus: false,
   });
 };
@@ -197,13 +141,14 @@ export const useOverlayFocus = () => {
 
 export const useSetOverlayView = () => {
   const queryClient = useQueryClient();
-
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (input: OverlaySetViewInput) => api.overlay.setView(input),
     onSuccess: (state) => {
       writeOverlayState(queryClient, state);
     },
   });
+
+  return useCoalescedMutation(mutation, OVERLAY_WRITE_DELAY_MS);
 };
 
 export const useSetOverlayModules = () => {
@@ -223,18 +168,19 @@ export const useSetPointerSize = () => {
 
 export const useSetOverlayPointer = () => {
   const queryClient = useQueryClient();
-
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (pointer: OverlayPointer) => api.overlay.setPointer(pointer),
     onSuccess: (state) => {
       writeOverlayState(queryClient, state);
     },
   });
+
+  return useCoalescedMutation(mutation, OVERLAY_WRITE_DELAY_MS);
 };
 
 export const useSelectTournament = () => {
   return useOptimisticOverlayMutation(
     (input: OverlaySetViewInput) => api.overlay.setView(input),
-    (state, input) => ({ ...state, activeSlug: input.activeSlug }),
+    (state, input) => ({ ...state, activeKey: input.activeKey }),
   );
 };

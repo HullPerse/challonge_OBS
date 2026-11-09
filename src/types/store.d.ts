@@ -1,7 +1,7 @@
 import type { TournamentVisibility } from "@/types/tournament";
 
 type VisibilityVariables = {
-  slug: string;
+  key: string;
   visibility: TournamentVisibility;
 };
 

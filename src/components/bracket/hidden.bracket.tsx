@@ -5,11 +5,13 @@ import { CARD_HEIGHT, CARD_WIDTH } from "@/configs/bracket.config";
 function HiddenBracket({
   left,
   top,
+  height = CARD_HEIGHT,
   identifier,
   onRestore,
 }: {
   left: number;
   top: number;
+  height?: number;
   identifier: number | null;
   onRestore: () => void;
 }) {
@@ -19,7 +21,7 @@ function HiddenBracket({
       aria-label={`Вернуть скрытый матч ${identifier ?? ""}`}
       title="Вернуть матч"
       className="group absolute flex cursor-pointer items-center justify-center rounded-ui-lg border border-dashed border-transparent text-text-muted transition-colors hover:border-border-strong hover:bg-surface/10 focus-visible:border-accent focus-visible:outline-none"
-      style={{ left, top, width: CARD_WIDTH, height: CARD_HEIGHT }}
+      style={{ left, top, width: CARD_WIDTH, height }}
       onPointerDown={(event) => {
         event.stopPropagation();
       }}

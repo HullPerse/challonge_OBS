@@ -1,6 +1,8 @@
+import { useCell } from "@hullperse/hp_utils/react";
+
+import { menuStore } from "@/stores/menu.store";
 import { modalStore } from "@/stores/modal.store";
 import type { Player, TournamentSnapshot } from "@/types/tournament";
-import { useState } from "react";
 import HistorySidebar from "./components/sidebar/history.sidebar";
 import { Input } from "@/components/ui/input.component";
 import Button from "@/components/ui/button.component";
@@ -9,7 +11,7 @@ import ListSidebar from "./components/sidebar/list.sidebar";
 import PlayerAvatar from "@/components/shared/avatar.component";
 
 function SidebarMenu({ snapshot }: { snapshot: TournamentSnapshot }) {
-  const [query, setQuery] = useState<string>("");
+  const query = useCell(menuStore.playerQuery);
 
   const participants = snapshot.participants;
   const normalizedQuery = query.trim().toLocaleLowerCase("ru");
@@ -50,7 +52,7 @@ function SidebarMenu({ snapshot }: { snapshot: TournamentSnapshot }) {
           <Input
             value={query}
             onChange={(event) => {
-              setQuery(event.target.value);
+              menuStore.playerQuery.set(event.target.value);
             }}
             placeholder="Поиск игрока"
             aria-label="Поиск игрока"
@@ -61,7 +63,7 @@ function SidebarMenu({ snapshot }: { snapshot: TournamentSnapshot }) {
               variant="ghost"
               size="icon"
               onClick={() => {
-                setQuery("");
+                menuStore.playerQuery.set("");
               }}
               aria-label="Очистить поиск"
               className="absolute top-1/2 right-1 size-6 -translate-y-1/2"

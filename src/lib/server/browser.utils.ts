@@ -20,6 +20,6 @@ export default class BrowserUtils {
       }).exited,
     );
 
-    if (error) console.error("App: could not open browser", error);
+    if (error) console.error("browser: could not open", error);
   }
 }

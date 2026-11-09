@@ -3,7 +3,7 @@ import { useCell } from "@hullperse/hp_utils/react";
 import { XIcon } from "lucide-react";
 
 import Button from "@/components/ui/button.component";
-import DialogPanel from "@/components/shared/panel.components";
+import DialogPanel from "@/components/shared/panel.component";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog.component";
 import { useModalResize } from "@/hooks/useModalResize.hook";
 import { modalStore } from "@/stores/modal.store";

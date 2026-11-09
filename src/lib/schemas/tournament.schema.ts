@@ -9,6 +9,18 @@ export const rawPlayerSchema = z
   })
   .loose();
 
+const rawEntrantSchema = rawPlayerSchema.extend({
+  scores: z.array(z.number()).nullish(),
+  final_rank: z.number().nullish(),
+});
+
+const rawStationSchema = z
+  .object({
+    id: z.number().nullish(),
+    name: z.string().nullish(),
+  })
+  .loose();
+
 export const rawMatchSchema = z
   .object({
     id: z.number().nullish(),
@@ -17,9 +29,10 @@ export const rawMatchSchema = z
     round: z.number(),
     state: z.string(),
     scheduled_time: z.string().nullish(),
-    station: z.union([z.string(), z.number()]).nullish(),
+    station: z.union([z.string(), z.number(), rawStationSchema]).nullish(),
     player1: rawPlayerSchema.nullish(),
     player2: rawPlayerSchema.nullish(),
+    participants: z.array(rawEntrantSchema).nullish(),
     player1_prereq_identifier: z.number().nullish(),
     player2_prereq_identifier: z.number().nullish(),
     player1_is_prereq_match_loser: z.boolean().nullish(),
@@ -51,11 +64,23 @@ const rawTournamentSchema = z
   })
   .loose();
 
+const rawGroupSchema = z
+  .object({
+    name: z.string().nullish(),
+    tournament: rawTournamentSchema.nullish(),
+    rounds: z.array(rawRoundSchema).nullish(),
+    matches_by_round: z.record(z.string(), z.array(rawMatchSchema)).default({}),
+    participants: z.array(rawPlayerSchema).nullish(),
+    scorecard_html: z.string().nullish(),
+  })
+  .loose();
+
 export const rawStoreSchema = z
   .object({
     tournament: rawTournamentSchema,
     rounds: z.array(rawRoundSchema),
     matches_by_round: z.record(z.string(), z.array(rawMatchSchema)),
     participants: z.array(rawPlayerSchema).nullish(),
+    groups: z.array(rawGroupSchema).nullish(),
   })
   .loose();

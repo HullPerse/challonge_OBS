@@ -1,3 +1,5 @@
+import { clamp } from "@hullperse/hp_utils/math";
+
 import {
   OVERLAY_POINTER_RANGE,
   OVERLAY_STAGE_HEIGHT,
@@ -6,10 +8,6 @@ import {
 } from "@/configs/overlay.config";
 import type { BracketCamera, BracketPoint, BracketSize } from "@/types/bracket";
 import type { OverlayPointer, OverlayView } from "@/types/overlay";
-
-const clamp = (value: number, min: number, max: number): number => {
-  return Math.min(max, Math.max(min, value));
-};
 
 /** Match the bracket width so the overlay is not zoomed out by a short viewport. */
 const stageScale = (viewport: BracketSize): number => {

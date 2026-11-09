@@ -1,4 +1,4 @@
-import DialogPanel from "@/components/shared/panel.components";
+import DialogPanel from "@/components/shared/panel.component";
 import type { ReactNode } from "react";
 
 function OverlayDialogFrame({

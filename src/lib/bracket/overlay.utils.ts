@@ -37,7 +37,7 @@ const handlers: EventHandlers = {
 
   state: (previous, event) => ({
     state: event.state,
-    tournament: event.tournament !== undefined ? event.tournament : (previous?.tournament ?? null),
+    tournament: event.tournament ?? previous?.tournament ?? null,
     visibility: event.visibility ?? previous?.visibility ?? EMPTY_VISIBILITY,
   }),
 

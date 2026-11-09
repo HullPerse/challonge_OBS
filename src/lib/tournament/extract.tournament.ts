@@ -2,17 +2,13 @@ import { attemptSync } from "@hullperse/hp_utils/attempt";
 import { flattenMarkup } from "@hullperse/hp_utils/text";
 
 import { CHALLONGE_TITLE_SUFFIX } from "@/configs/tournament.config";
+import { isRecord } from "@/lib/object.utils";
 import type { RawStore } from "@/types/tournament";
 import { rawStoreSchema } from "../schemas/tournament.schema";
 
-/** Narrows unknown values to plain records. */
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === "object" && value !== null;
-};
-
 /** Parses JSON without throwing; `undefined` means the input was not valid JSON. */
 const parseJson = (value: string): unknown => {
-  const [parsed, error] = attemptSync(() => JSON.parse(value) as unknown);
+  const [parsed, error] = attemptSync<unknown>(() => JSON.parse(value));
   return error ? undefined : parsed;
 };
 
