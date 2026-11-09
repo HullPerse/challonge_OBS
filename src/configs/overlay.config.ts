@@ -68,7 +68,10 @@ export const OVERLAY_MODULE_LABELS: Record<OverlayModuleKey, string> = {
 };
 
 /** Coalesce high-frequency camera and pointer writes into one request window. */
-export const OVERLAY_WRITE_DELAY_MS = 40;
+export const OVERLAY_WRITE_DELAY_MS = 16;
+
+/** Debounce high-frequency view writes before they reach SQLite. */
+export const OVERLAY_PERSIST_DELAY_MS = 300;
 
 /** Fixed overlay stage size in CSS pixels. */
 export const OVERLAY_STAGE_WIDTH: number = 1920;

@@ -4,6 +4,7 @@ import {
   DEFAULT_VIEW,
   OVERLAY_CURSOR_SIZE,
   OVERLAY_MODULE_KEYS,
+  OVERLAY_PERSIST_DELAY_MS,
 } from "@/configs/overlay.config";
 import { createSseHub } from "@/lib/server/sse.utils";
 import VisibilityUtils from "@/lib/server/visibility.utils";
@@ -42,6 +43,8 @@ export default class OverlayService {
   private modal: OverlayState["modal"] = null;
   private revision = 0;
   private updatedAt = Date.now();
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private dirty = false;
 
   constructor(tournaments: TournamentService, database: DatabaseClient) {
     this.tournaments = tournaments;
@@ -93,7 +96,7 @@ export default class OverlayService {
       this.modal = null;
     }
     this.touch();
-    this.persist();
+    this.persist(keyChanged);
 
     if (keyChanged || this.modules.camera) {
       this.hub.publish(this.createStateEvent(tournament));
@@ -121,7 +124,7 @@ export default class OverlayService {
   setPointerSize(input: OverlayPointerSizeInput): OverlayState {
     this.pointerSize = input.pointerSize;
     this.touch();
-    this.persist();
+    this.persist(true);
     this.hub.publish(this.createStateEvent(null));
 
     return this.getState();
@@ -166,7 +169,7 @@ export default class OverlayService {
     if (!this.modules.pointer) this.pointer = { ...this.pointer, visible: false };
 
     this.touch();
-    this.persist();
+    this.persist(true);
 
     this.hub.publish({
       type: "modules",
@@ -218,7 +221,7 @@ export default class OverlayService {
     this.highlightedPlayerId = null;
     this.modal = null;
     this.touch();
-    this.persist();
+    this.persist(true);
 
     this.hub.publish({
       type: "state",
@@ -229,6 +232,7 @@ export default class OverlayService {
   }
 
   close() {
+    this.flushPersist();
     this.hub.close();
   }
 
@@ -300,11 +304,36 @@ export default class OverlayService {
 
     if (this.activeKey && !this.tournaments.exists(this.activeKey)) {
       this.activeKey = null;
-      this.persist();
+      this.persist(true);
     }
   }
 
-  private persist() {
+  /** Schedules a SQLite write; camera ticks would otherwise hit the disk on every frame. */
+  private persist(immediate = false) {
+    this.dirty = true;
+
+    if (immediate) {
+      this.flushPersist();
+      return;
+    }
+
+    if (this.persistTimer !== null) return;
+
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      this.flushPersist();
+    }, OVERLAY_PERSIST_DELAY_MS);
+  }
+
+  private flushPersist() {
+    if (this.persistTimer !== null) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+
+    if (!this.dirty) return;
+    this.dirty = false;
+
     const state = this.getState();
 
     writeOverlayState(this.database, {

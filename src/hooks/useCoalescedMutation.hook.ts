@@ -41,13 +41,15 @@ export const useCoalescedMutation = <TData, TError extends Error, TVariables>(
 
         if (pendingRef.current === null || timerRef.current !== null) return;
 
+        // Send the queued value right after the previous request settles instead of
+        // waiting out another throttle window.
         timerRef.current = setTimeout(() => {
           timerRef.current = null;
           flushRef.current?.();
-        }, delayMs);
+        }, 0);
       },
     });
-  }, [delayMs]);
+  }, []);
 
   useEffect(() => {
     flushRef.current = flush;

@@ -4,12 +4,15 @@ import { api } from "@/api/index.api";
 import OverlayBracket from "@/components/overlay/bracket.overlay";
 import { applyEvent } from "@/lib/bracket/overlay.utils";
 import { readOverlayBootstrap } from "@/lib/overlay/bootstrap.utils";
+import { pointerStore } from "@/stores/pointer.store";
 import type { OverlayScene } from "@/types/overlay";
 
 function OverlayPage() {
   const [scene, setScene] = useState<OverlayScene | null>(() => {
     const bootstrap = readOverlayBootstrap();
     if (!bootstrap) return null;
+
+    pointerStore.pointer.set(bootstrap.state.pointer);
 
     return {
       state: bootstrap.state,
@@ -34,6 +37,17 @@ function OverlayPage() {
         setConnected(false);
       },
       onEvent: (event) => {
+        if (event.type === "pointer") {
+          pointerStore.pointer.set(event.pointer);
+          return;
+        }
+
+        if (event.type === "sync" || event.type === "state") {
+          pointerStore.pointer.set(event.state.pointer);
+        } else if (event.type === "modules") {
+          pointerStore.pointer.set(event.pointer);
+        }
+
         setScene((previous) => applyEvent(previous, event));
       },
     });

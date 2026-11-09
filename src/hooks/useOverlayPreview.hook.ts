@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useCell } from "@hullperse/hp_utils/react";
 
 import { appCardView, appDialogView } from "@/lib/bracket/match.utils";
@@ -16,9 +17,15 @@ export const useAppBracketView = (
   snapshot: TournamentSnapshot | null,
 ): { cardView: MatchCardView; showRoundTitles: boolean; showBackground: boolean } => {
   const previewInApp = usePreviewInApp();
+  const modules = overlayState?.modules ?? null;
+
+  const cardView = useMemo(
+    () => appCardView(previewInApp, modules, snapshot),
+    [modules, previewInApp, snapshot],
+  );
 
   return {
-    cardView: appCardView(previewInApp, overlayState?.modules ?? null, snapshot),
+    cardView,
     showRoundTitles: !previewInApp || !overlayState || overlayState.modules.roundTitles,
     showBackground: !previewInApp || !overlayState || overlayState.modules.background,
   };

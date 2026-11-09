@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { memo, type MouseEvent } from "react";
 
 import MatchMeta from "@/components/match/meta.match";
 import MatchNumber from "@/components/match/number.match";
@@ -115,4 +115,4 @@ function MatchCard({
   );
 }
 
-export default MatchCard;
+export default memo(MatchCard);

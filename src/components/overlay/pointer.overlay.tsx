@@ -1,17 +1,20 @@
+import { useCell } from "@hullperse/hp_utils/react";
+
 import {
   OVERLAY_CURSOR_OFFSETS,
   OVERLAY_CURSOR_SIZE,
   OVERLAY_STAGE_HEIGHT,
   OVERLAY_STAGE_WIDTH,
 } from "@/configs/overlay.config";
+import { pointerStore } from "@/stores/pointer.store";
 import type { OverlayScene } from "@/types/overlay";
 
 function OverlayPointerComponent({ scene }: { scene: OverlayScene | null }) {
-  const pointer = scene?.state.pointer;
+  const pointer = useCell(pointerStore.pointer);
   const enabled = scene?.state.modules.pointer ?? false;
   const size = scene?.state.pointerSize ?? OVERLAY_CURSOR_SIZE.default;
 
-  if (!enabled || !pointer?.visible) return null;
+  if (!enabled || !pointer.visible) return null;
 
   const isLink = pointer.cursor === "link";
   const offset = OVERLAY_CURSOR_OFFSETS[pointer.cursor];
@@ -24,11 +27,12 @@ function OverlayPointerComponent({ scene }: { scene: OverlayScene | null }) {
       aria-hidden="true"
       className="pointer-events-none absolute z-30"
       style={{
-        left: pointer.x * OVERLAY_STAGE_WIDTH,
-        top: pointer.y * OVERLAY_STAGE_HEIGHT,
+        left: 0,
+        top: 0,
         width: size,
         height: size,
-        transform: `translate(${offset.x * ratio}px, ${offset.y * ratio}px)`,
+        transform: `translate3d(${pointer.x * OVERLAY_STAGE_WIDTH}px, ${pointer.y * OVERLAY_STAGE_HEIGHT}px, 0) translate(${offset.x * ratio}px, ${offset.y * ratio}px)`,
+        willChange: "transform",
       }}
     />
   );

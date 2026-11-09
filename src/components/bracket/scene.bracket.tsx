@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import HiddenBracket from "@/components/bracket/hidden.bracket";
 import MatchCard from "@/components/match/card.match";
 import BracketSectionHeader from "@/components/shared/bracket.component";
@@ -164,4 +166,4 @@ function SceneBracket({
   );
 }
 
-export default SceneBracket;
+export default memo(SceneBracket);

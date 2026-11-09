@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { cn } from "cn";
 
 import SceneBracket from "@/components/bracket/scene.bracket";
@@ -18,8 +19,23 @@ function OverlayBracket({ scene }: { scene: OverlayScene | null }) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const tournament = scene?.tournament ?? null;
   const layout = tournament ? getBracketLayout(tournament) : null;
-  const camera = scene && layout ? viewToBracketCamera(scene.state.view, layout) : null;
+  const view = scene?.state.view;
+  const modules = scene?.state.modules;
+  const hiddenMatchIds = scene?.visibility.hiddenMatches;
+  const hiddenRoundIds = scene?.visibility.hiddenRounds;
   const scale = overlayStageScale(size);
+
+  // Keep bracket props referentially stable so pointer updates only re-render the cursor.
+  const camera = useMemo(
+    () => (view && layout ? viewToBracketCamera(view, layout) : null),
+    [layout, view],
+  );
+  const hiddenMatches = useMemo(() => new Set(hiddenMatchIds ?? []), [hiddenMatchIds]);
+  const hiddenRounds = useMemo(() => new Set(hiddenRoundIds ?? []), [hiddenRoundIds]);
+  const cardView = useMemo(
+    () => (modules && tournament ? overlayCardView(modules, tournament) : null),
+    [modules, tournament],
+  );
 
   return (
     <div ref={ref} className="relative h-full w-full overflow-hidden">
@@ -30,15 +46,15 @@ function OverlayBracket({ scene }: { scene: OverlayScene | null }) {
         )}
         style={overlayStageStyle(size, scale)}
       >
-        {scene && tournament && layout && camera && (
+        {scene && tournament && layout && camera && cardView && (
           <SceneBracket
             layout={layout}
             pan={camera.pan}
             zoom={camera.zoom}
-            hiddenMatches={new Set(scene.visibility.hiddenMatches)}
-            hiddenRounds={new Set(scene.visibility.hiddenRounds)}
+            hiddenMatches={hiddenMatches}
+            hiddenRounds={hiddenRounds}
             activePlayerId={scene.state.highlightedPlayerId}
-            cardView={overlayCardView(scene.state.modules, tournament)}
+            cardView={cardView}
             showRoundTitles={scene.state.modules.roundTitles}
           />
         )}

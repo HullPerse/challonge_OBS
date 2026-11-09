@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { OVERLAY_WRITE_DELAY_MS } from "@/configs/overlay.config";
 import { LIVE_REFRESH_INTERVAL_MS, OVERLAY_STATE_STALE_MS } from "@/configs/query.config";
@@ -66,7 +66,11 @@ const useOptimisticOverlayMutation = <TVariables>(
 };
 
 const writeEventState = (queryClient: QueryClient, event: OverlayEvent) => {
-  if (event.type === "tournament" || event.type === "visibility") return;
+  // Cursor moves are handled by the overlay's pointer store; keeping them out of
+  // the shared cache stops the control panel from re-rendering on every move.
+  if (event.type === "tournament" || event.type === "visibility" || event.type === "pointer") {
+    return;
+  }
 
   queryClient.setQueryData<OverlayState>(overlayKeys.state, (previous) =>
     applyStateEvent(previous, event),
@@ -166,16 +170,39 @@ export const useSetPointerSize = () => {
   );
 };
 
-export const useSetOverlayPointer = () => {
-  const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: (pointer: OverlayPointer) => api.overlay.setPointer(pointer),
-    onSuccess: (state) => {
-      writeOverlayState(queryClient, state);
-    },
-  });
+let pointerRequest: Promise<void> | null = null;
+let pendingPointer: OverlayPointer | null = null;
 
-  return useCoalescedMutation(mutation, OVERLAY_WRITE_DELAY_MS);
+/**
+ * Sends cursor moves as soon as they are mirrored, keeping only the latest one
+ * while a request is in flight. This bypasses React state entirely: a pointer
+ * move must not re-render the bracket tree.
+ */
+const flushPointer = (): void => {
+  if (pointerRequest !== null || pendingPointer === null) return;
+
+  const pointer = pendingPointer;
+  pendingPointer = null;
+
+  pointerRequest = (async () => {
+    try {
+      await api.overlay.setPointer(pointer);
+    } catch {
+      // Cursor moves are best-effort and the next move supersedes a failed one.
+    } finally {
+      pointerRequest = null;
+      flushPointer();
+    }
+  })();
+};
+
+export const useSetOverlayPointer = () => {
+  const mutate = useCallback((pointer: OverlayPointer) => {
+    pendingPointer = pointer;
+    flushPointer();
+  }, []);
+
+  return { mutate };
 };
 
 export const useSelectTournament = () => {
