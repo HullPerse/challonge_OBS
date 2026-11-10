@@ -1,11 +1,14 @@
 import { MAX_KEY_LENGTH, MAX_SLUG_LENGTH, SLUG } from "@/configs/server/validation.config";
 import { isChallongeHost } from "@/configs/tournament.config";
 import HttpUtils from "@/lib/server/http.utils";
+import Logger from "@/lib/server/logger.utils";
 import { snapshotWriteSchema, visibilitySchema } from "@/lib/schemas/server/tournament.schema";
 import { tournamentKey } from "@/lib/tournament/slug.tournament";
 import type { TournamentRoutesOptions } from "@/types/server/routes";
 import { Elysia } from "elysia";
 import type TournamentService from "../services/tournament.service";
+
+const logger = new Logger("TOURNAMENTS");
 
 export default class TournamentRoutes {
   private readonly tournaments: TournamentService;
@@ -41,12 +44,12 @@ export default class TournamentRoutes {
   private save(key: string, slug: string, body: unknown, createOnly = false): Response {
     const parsed = snapshotWriteSchema.safeParse(body);
     if (!parsed.success) {
-      console.error("tournaments: invalid snapshot", parsed.error.issues);
+      logger.debug("invalid snapshot", { issues: parsed.error.issues });
       return HttpUtils.jsonRes({ error: "Invalid snapshot", issues: parsed.error.issues }, 400);
     }
 
     if (parsed.data.key !== key || parsed.data.slug !== slug) {
-      console.error("tournaments: key mismatch", {
+      logger.warn("key mismatch", {
         key,
         snapshotKey: parsed.data.key,
         slug,

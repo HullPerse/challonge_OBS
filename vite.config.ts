@@ -10,6 +10,7 @@ export default defineConfig({
   server: {
     host: DEV_UI_HOST,
     port: DEV_UI_PORT,
+    strictPort: true,
     proxy: {
       "/api": DEV_API_URL,
     },

@@ -1,6 +1,9 @@
 import { KNOWN_API_PATH } from "@/configs/server/app.config";
 import HttpUtils from "@/lib/server/http.utils";
+import Logger from "@/lib/server/logger.utils";
 import { Elysia } from "elysia";
+
+const logger = new Logger("HTTP");
 
 /** Maps request errors to the shared JSON error shape. */
 export const errorPlugin = new Elysia({ name: "error-handler" }).onError(
@@ -15,7 +18,12 @@ export const errorPlugin = new Elysia({ name: "error-handler" }).onError(
       return HttpUtils.methodNotAllowed();
     }
 
-    console.error("App: unhandled request error", error);
+    logger.error("unhandled request error", error, {
+      code,
+      method: request.method,
+      path: new URL(request.url).pathname,
+    });
+
     return HttpUtils.errorRes("Internal server error", 500);
   },
 );

@@ -11,6 +11,9 @@ export const CHALLONGE_CACHE_TTL_MS = 10_000;
 export const CHALLONGE_CACHE_LIMIT = 8;
 /** Proxy request timeout; keep below API_TIMEOUT_MS so upstream errors surface first. */
 export const PROXY_TIMEOUT_MS = 20_000;
+/** Transient upstream failures are retried before the proxy gives up. */
+export const CHALLONGE_RETRY_ATTEMPTS = 3;
+export const CHALLONGE_RETRY_DELAY_MS = 150;
 /** Headers sent to Challonge and the default proxied content type. */
 export const PROXY_ACCEPT = "text/html,application/xhtml+xml";
 export const DEFAULT_HTML_CONTENT_TYPE = "text/html; charset=utf-8";

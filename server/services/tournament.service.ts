@@ -2,6 +2,7 @@ import { SNAPSHOT_CACHE_LIMIT } from "@/configs/server/tournament.config";
 import { attemptSync } from "@hullperse/hp_utils/attempt";
 import { desc, eq } from "drizzle-orm";
 import { snapshotSchema } from "@/lib/schemas/server/tournament.schema";
+import Logger from "@/lib/server/logger.utils";
 import VisibilityUtils from "@/lib/server/visibility.utils";
 import type { CachedSnapshot } from "@/types/server/tournament";
 import type {
@@ -11,6 +12,8 @@ import type {
 } from "@/types/tournament";
 import type { DatabaseClient } from "../db/client.db";
 import { tournaments, tournamentVisibility } from "../db/schema.db";
+
+const logger = new Logger("TOURNAMENTS");
 
 /** Stores validated snapshots and visibility in SQLite. */
 export default class TournamentService {
@@ -74,11 +77,18 @@ export default class TournamentService {
 
     const [parse, parseError] = attemptSync<unknown>(() => JSON.parse(data.snapshot));
 
-    if (parseError) return null;
+    if (parseError) {
+      logger.warn("stored snapshot has invalid JSON", { error: parseError, key });
+      return null;
+    }
 
     const parsed = snapshotSchema.safeParse(parse);
 
-    if (parsed.error) return null;
+    if (parsed.error) {
+      logger.warn("stored snapshot failed validation", { error: parsed.error, key });
+      return null;
+    }
+
     return this.cache(parsed.data);
   }
 

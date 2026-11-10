@@ -1,5 +1,7 @@
 import { lazy, Suspense, type ReactNode } from "react";
 
+import ErrorBoundary from "./components/shared/errorBoundary.component";
+
 const MenuPage = lazy(() => import("./pages/menu.page"));
 const OverlayPage = lazy(() => import("./pages/overlay.page"));
 const NotFoundPage = lazy(() => import("./pages/notFound.page"));
@@ -19,7 +21,9 @@ function App() {
         e.preventDefault();
       }}
     >
-      <Suspense fallback={null}>{renderPage(window.location.pathname)}</Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={null}>{renderPage(window.location.pathname)}</Suspense>
+      </ErrorBoundary>
     </div>
   );
 }

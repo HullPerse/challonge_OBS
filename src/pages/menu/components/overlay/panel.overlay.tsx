@@ -1,5 +1,7 @@
-import { Fragment, useRef, useState } from "react";
+import { Fragment, startTransition, useEffect, useRef, useState } from "react";
+import { Check, CircleAlert, Copy } from "lucide-react";
 
+import Button from "@/components/ui/button.component";
 import Loader from "@/components/ui/loader.component";
 import { Switch } from "@/components/ui/switch.component";
 import { OVERLAY_MODULE_GROUPS, OVERLAY_MODULE_LABELS } from "@/configs/overlay.config";
@@ -8,7 +10,10 @@ import { useSetOverlayModules, useSetPointerSize } from "@/hooks/useOverlay.hook
 import { errorMessage } from "@/lib/error.utils";
 import { overlayStore } from "@/stores/overlay.store";
 import type { OverlayModuleKey, OverlayState, PendingOverlayModules } from "@/types/overlay";
+import { attempt } from "@hullperse/hp_utils/attempt";
 import CursorSizeRow from "./cursorSize.overlay";
+
+type CopyState = "idle" | "copied" | "error";
 
 function OverlayPanel({
   state,
@@ -23,8 +28,24 @@ function OverlayPanel({
   const pointerSize = useSetPointerSize();
   const previewInApp = usePreviewInApp();
   const [pendingModules, setPendingModules] = useState<PendingOverlayModules>({});
+  const [copyState, setCopyState] = useState<CopyState>("idle");
   const pendingSequence = useRef<number>(0);
   const persistedSize = state?.pointerSize;
+  const overlayUrl = `${window.location.origin}/overlay`;
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    if (copyState !== "idle") {
+      timer = setTimeout(() => {
+        setCopyState("idle");
+      }, 1800);
+    }
+
+    return () => {
+      if (timer !== null) clearTimeout(timer);
+    };
+  }, [copyState]);
 
   const enabledCount = state ? Object.values(state.modules).filter(Boolean).length : 0;
   const totalCount = state ? Object.keys(state.modules).length : 0;
@@ -62,6 +83,21 @@ function OverlayPanel({
     pointerSize.mutate({ pointerSize: value });
   };
 
+  const copyOverlayUrl = (): void => {
+    startTransition(async () => {
+      const [, copyError] = await attempt(
+        (async () => {
+          await navigator.clipboard.writeText(overlayUrl);
+        })(),
+      );
+
+      setCopyState(copyError ? "error" : "copied");
+    });
+  };
+
+  const copyLabel =
+    copyState === "copied" ? "Скопировано" : copyState === "error" ? "Не удалось" : "URL для OBS";
+
   return (
     <aside
       id="overlay-settings-panel"
@@ -73,6 +109,33 @@ function OverlayPanel({
         <span className="text-[11px] tabular-nums text-text-muted">
           {state ? `${enabledCount} / ${totalCount}` : "—"}
         </span>
+      </section>
+
+      <section className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] text-text-muted" aria-live="polite">
+            {copyLabel}
+          </p>
+          <p className="truncate text-[11px] text-text-secondary" title={overlayUrl}>
+            {overlayUrl}
+          </p>
+        </div>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="size-8 shrink-0"
+          onClick={copyOverlayUrl}
+          aria-label="Скопировать URL оверлея"
+          title={copyState === "copied" ? "URL скопирован" : "Скопировать URL оверлея"}
+        >
+          {copyState === "copied" ? (
+            <Check className="size-3.5" />
+          ) : copyState === "error" ? (
+            <CircleAlert className="size-3.5 text-accent" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
+        </Button>
       </section>
 
       <section className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">

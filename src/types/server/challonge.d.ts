@@ -8,4 +8,4 @@ export type CachedPage = {
 
 export type LoadResult =
   | { ok: true; page: CachedPage }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; cause?: unknown };

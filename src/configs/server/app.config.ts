@@ -1,4 +1,3 @@
-import EnvUtils from "@/lib/server/env.utils";
 import PathUtils from "@/lib/server/path.utils";
 import SettingsUtils from "@/lib/server/settings.utils";
 
@@ -6,10 +5,12 @@ import SettingsUtils from "@/lib/server/settings.utils";
 export const HOST = "127.0.0.1";
 /** Local address used when opening the standalone app in a browser. */
 export const BROWSER_HOST = "127.0.0.1";
-const SETTINGS = SettingsUtils.load();
-export const PORT = EnvUtils.parsePort(Bun.env.PORT, SETTINGS.port);
+export const SETTINGS = SettingsUtils.load();
+const OPEN_BROWSER_VALUE = Bun.env.OPEN_BROWSER?.trim().toLowerCase();
 export const OPEN_BROWSER =
-  Bun.env.OPEN_BROWSER === undefined ? SETTINGS.open_browser : Bun.env.OPEN_BROWSER !== "0";
+  OPEN_BROWSER_VALUE === undefined
+    ? SETTINGS.open_browser
+    : OPEN_BROWSER_VALUE !== "0" && OPEN_BROWSER_VALUE !== "false";
 /** Max accepted JSON body size in bytes. */
 export const MAX_JSON_BYTES = 5_000_000;
 /** Bun server idle timeout in seconds. */

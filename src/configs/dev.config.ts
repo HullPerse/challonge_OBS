@@ -1,4 +1,4 @@
-import DevSettingsUtils from "../lib/server/dev-settings.utils.ts";
+import DevSettingsUtils from "../lib/server/dev.utils.ts";
 
 /** Vite dev server address shared by the dev runner and startup log. */
 export const DEV_UI_HOST = "127.0.0.1";

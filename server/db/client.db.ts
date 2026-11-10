@@ -8,10 +8,13 @@ import {
   OPTIMIZE_PRAGMA,
 } from "@/configs/server/database.config";
 import DatabaseUtils from "@/lib/server/database.utils";
+import Logger from "@/lib/server/logger.utils";
 import { attemptSync } from "@hullperse/hp_utils/attempt";
 import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import * as schema from "./schema.db";
 import { migrateDatabase } from "./migrate.db";
+
+const logger = new Logger("DATABASE");
 
 /** Owns the SQLite connection, pragmas, migration, and health check. */
 export class DatabaseClient {
@@ -19,6 +22,8 @@ export class DatabaseClient {
   readonly orm: BunSQLiteDatabase<typeof schema>;
   readonly sqlite: Database;
   private optimizeTimer: ReturnType<typeof setInterval> | null = null;
+  private healthErrorLogged = false;
+  private optimizeErrorLogged = false;
 
   constructor(databasePath?: string) {
     this.path = DatabaseUtils.resolvePath(databasePath ?? DATABASE_PATH);
@@ -43,7 +48,17 @@ export class DatabaseClient {
       this.sqlite.query<{ ok: number }, []>("SELECT 1 AS ok").get(),
     );
 
-    return !error && row?.ok === 1;
+    if (error) {
+      if (!this.healthErrorLogged) {
+        logger.warn("database health check failed", { error });
+        this.healthErrorLogged = true;
+      }
+
+      return false;
+    }
+
+    this.healthErrorLogged = false;
+    return row?.ok === 1;
   }
 
   /** Optimizes and closes the SQLite connection. */
@@ -58,7 +73,17 @@ export class DatabaseClient {
   }
 
   private optimize() {
-    attemptSync(() => this.sqlite.run(OPTIMIZE_PRAGMA));
+    const [, error] = attemptSync(() => this.sqlite.run(OPTIMIZE_PRAGMA));
+
+    if (!error) {
+      this.optimizeErrorLogged = false;
+      return;
+    }
+
+    if (!this.optimizeErrorLogged) {
+      logger.warn("database optimize failed", { error });
+      this.optimizeErrorLogged = true;
+    }
   }
 }
 

@@ -1,4 +1,7 @@
+import Logger from "@/lib/server/logger.utils";
 import { attempt } from "@hullperse/hp_utils/attempt";
+
+const logger = new Logger("BROWSER");
 
 /** Opens the default browser for the standalone app. */
 export default class BrowserUtils {
@@ -20,6 +23,6 @@ export default class BrowserUtils {
       }).exited,
     );
 
-    if (error) console.error("browser: could not open", error);
+    if (error) logger.warn("could not open the browser", { error, url });
   }
 }

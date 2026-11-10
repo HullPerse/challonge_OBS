@@ -8,6 +8,8 @@ export type ApiErrorPayload = {
 export type ApiHealth = {
   ok: boolean;
   db: "up" | "down";
+  app?: string;
+  uptime?: number;
 };
 
 export type ApiRequestInit = RequestInit & {

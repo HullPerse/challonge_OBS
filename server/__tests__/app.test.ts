@@ -250,7 +250,7 @@ describe("health", () => {
     const response = await request("/health");
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, db: "up" });
+    expect(await response.json()).toMatchObject({ ok: true, db: "up", app: "challonge-obs" });
   });
 });
 

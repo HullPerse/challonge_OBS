@@ -7,6 +7,7 @@ import {
   STATIC_SECURITY_HEADERS,
 } from "@/configs/server/static.config";
 import HttpUtils from "@/lib/server/http.utils";
+import Logger from "@/lib/server/logger.utils";
 import PathUtils from "@/lib/server/path.utils";
 import StaticUtils from "@/lib/server/static.utils";
 import type { StaticEntry } from "@/types/server/static";
@@ -14,10 +15,13 @@ import { attempt, attemptSync } from "@hullperse/hp_utils/attempt";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
+const logger = new Logger("STATIC");
+
 /** Serves the built SPA with safe fallback routing. */
 export default class StaticService {
   private manifest = new Map<string, StaticEntry>();
   private manifestAt = 0;
+  private missingDistLogged = false;
 
   private rebuildManifest() {
     const next = new Map<string, StaticEntry>();
@@ -27,7 +31,10 @@ export default class StaticService {
         readdirSync(directory, { withFileTypes: true }),
       );
 
-      if (entriesError) return;
+      if (entriesError) {
+        logger.warn("could not read the dist directory", { error: entriesError, directory });
+        return;
+      }
 
       for (const entry of entries) {
         const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -41,13 +48,18 @@ export default class StaticService {
         if (!entry.isFile()) continue;
 
         const [stat, statError] = attemptSync(() => statSync(absolute));
-        if (statError) continue;
+
+        if (statError) {
+          logger.debug("could not stat a dist file", { file: absolute });
+          continue;
+        }
 
         next.set(relative, { size: stat.size, mtimeMs: stat.mtimeMs });
       }
     };
 
     walk(DIST_DIR, "");
+    if (next.size > 0) this.missingDistLogged = false;
     this.manifest = next;
     this.manifestAt = Date.now();
   }
@@ -86,7 +98,11 @@ export default class StaticService {
     bootstrap: unknown,
   ): Promise<Response> {
     const [html, htmlError] = await attempt(file.text());
-    if (htmlError) return HttpUtils.errorRes("Not found", 404);
+
+    if (htmlError) {
+      logger.error("could not read index.html", htmlError, { dist: DIST_DIR });
+      return HttpUtils.errorRes("Not found", 404);
+    }
 
     const payload = JSON.stringify(bootstrap)
       .replace(/</g, "\\u003c")
@@ -144,6 +160,11 @@ export default class StaticService {
       entry = this.manifest.get(relative);
 
       if (!entry) {
+        if (!this.missingDistLogged) {
+          logger.warn("frontend build is missing; run `bun run build`", { dist: DIST_DIR });
+          this.missingDistLogged = true;
+        }
+
         return new Response("Run `bun run build` first", { status: 503 });
       }
     }

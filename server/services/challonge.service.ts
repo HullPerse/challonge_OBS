@@ -1,6 +1,8 @@
 import {
   CHALLONGE_CACHE_LIMIT,
   CHALLONGE_CACHE_TTL_MS,
+  CHALLONGE_RETRY_ATTEMPTS,
+  CHALLONGE_RETRY_DELAY_MS,
   DEFAULT_HTML_CONTENT_TYPE,
   MAX_PROXY_BYTES,
   PROXY_ACCEPT,
@@ -10,13 +12,35 @@ import {
 } from "@/configs/server/challonge.config";
 import { isChallongeHost } from "@/configs/tournament.config";
 import HttpUtils from "@/lib/server/http.utils";
+import Logger from "@/lib/server/logger.utils";
 import type { CachedPage, LoadResult } from "@/types/server/challonge";
-import { attempt, attemptSync } from "@hullperse/hp_utils/attempt";
+import { attempt, attemptRetry, attemptSync } from "@hullperse/hp_utils/attempt";
+
+const logger = new Logger("CHALLONGE");
+
+type FetchLike = (input: URL, init?: RequestInit) => Promise<Response>;
+
+class ChallongeHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`Challonge responded ${status}`);
+    this.name = "ChallongeHttpError";
+    this.status = status;
+  }
+}
+
+const isRetryableStatus = (status: number): boolean => status >= 500 || status === 429;
 
 /** Proxies allowed Challonge module pages with revalidation and single-flight. */
 export default class ChallongeService {
   private readonly pages = new Map<string, CachedPage>();
   private readonly inflight = new Map<string, Promise<LoadResult>>();
+  private readonly fetcher: FetchLike;
+
+  constructor(fetcher: FetchLike = fetch) {
+    this.fetcher = fetcher;
+  }
 
   private isAllowedTarget(data: URL): boolean {
     const isHttps = data.protocol === "https:";
@@ -50,12 +74,16 @@ export default class ChallongeService {
     const [result, resultError] = await attempt(this.load(target, key, cached));
 
     if (resultError) {
-      console.error("challonge: proxy failed", resultError);
+      logger.error("proxy failed", resultError, { target: target.href });
       return HttpUtils.errorRes("Challonge request failed", 502);
     }
 
     if (!result.ok) {
-      console.error(`challonge: ${result.error}`, target.href);
+      const context = { target: target.href, status: result.status };
+
+      if (result.status >= 500) logger.error(result.error, result.cause, context);
+      else logger.warn(result.error, { ...context, error: result.cause });
+
       return HttpUtils.errorRes(result.error, result.status);
     }
 
@@ -72,7 +100,7 @@ export default class ChallongeService {
       this.inflight.delete(key);
 
       if (error) {
-        return { ok: false, status: 502, error: "Challonge request failed" };
+        return { ok: false, status: 502, error: "Challonge request failed", cause: error };
       }
 
       return result;
@@ -93,17 +121,9 @@ export default class ChallongeService {
       headers["if-modified-since"] = cached.lastModified;
     }
 
-    const [response, responseError] = await attempt(
-      fetch(target, {
-        redirect: "follow",
-        signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
-        headers,
-      }),
-    );
+    const [response, responseError] = await this.requestWithRetry(target, headers);
 
-    if (responseError) {
-      return { ok: false, status: 502, error: "Challonge request failed" };
-    }
+    if (responseError) return this.responseFailure(responseError);
 
     const [resolved, resolvedError] = attemptSync(() => new URL(response.url));
 
@@ -112,6 +132,7 @@ export default class ChallongeService {
         ok: false,
         status: 502,
         error: "Challonge redirected outside the allowlist",
+        cause: resolvedError,
       };
     }
 
@@ -136,6 +157,7 @@ export default class ChallongeService {
         ok: false,
         status: 502,
         error: bodyError ? "Failed to read Challonge response" : "Challonge response is too large",
+        cause: bodyError,
       };
     }
 
@@ -149,6 +171,47 @@ export default class ChallongeService {
 
     this.remember(key, page);
     return { ok: true, page };
+  }
+
+  private responseFailure(error: Error): LoadResult {
+    const status = error instanceof ChallongeHttpError ? error.status : 502;
+
+    return {
+      ok: false,
+      status,
+      error: error.message,
+      cause: error,
+    };
+  }
+
+  private requestWithRetry(
+    target: URL,
+    headers: Record<string, string>,
+  ): Promise<[Response, null] | [null, Error]> {
+    const request = async (): Promise<Response> => {
+      const response = await this.fetcher(target, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+        headers,
+      });
+
+      if (isRetryableStatus(response.status)) throw new ChallongeHttpError(response.status);
+      return response;
+    };
+
+    return attemptRetry(request, {
+      attempts: CHALLONGE_RETRY_ATTEMPTS,
+      delay: CHALLONGE_RETRY_DELAY_MS,
+      backoff: 2,
+      shouldRetry: (error, attemptIndex) => {
+        logger.debug("retrying Challonge request", {
+          target: target.href,
+          attempt: attemptIndex,
+          error,
+        });
+        return true;
+      },
+    });
   }
 
   private remember(key: string, page: CachedPage) {

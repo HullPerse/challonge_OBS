@@ -4,3 +4,7 @@ export type ServerSettings = {
   open_browser: boolean;
   db_path: string;
 };
+
+export type SettingsSaveResult =
+  | { ok: true; settings: ServerSettings }
+  | { ok: false; error: Error };
